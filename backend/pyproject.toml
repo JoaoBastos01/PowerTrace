@@ -1,0 +1,19 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "A backend service for the application."
+requires-python = ">=3.13"
+authors = [
+    { name="João Vitor da Silveira Bastos", email="<jvtbsts@gmail.com>" }
+]
+
+dependencies = [
+    "fastapi>=0.135.0",
+    "uvicorn>=0.41.0",
+    "pydantic>=2.12.0",
+    "python-dotenv>=1.2.0",
+]
+
+[build-system]
+requires = ["setuptools>=82.0.0", "wheel>=0.46.0"]
+build-backend = "setuptools.backends.legacy:build"
