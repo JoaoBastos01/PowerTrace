@@ -9,7 +9,7 @@ class Circuit:
         self.description = ""
         
     def add_load_point(self, load_point):
-        self.load_ponts.append(load_point)
+        self.load_points.append(load_point)
         
     @property
     def total_wattage(self):
@@ -32,3 +32,4 @@ class Circuit:
                     "max_amp": f"{max_amp}A",
                     "resistance": f"{res}Ω/km"
                 }
+        raise ValueError(f"Circuit '{self.circuit_id}': A carga de {self.total_wattage}W excede a capacidade máxima da tabela da NBR 5410")
