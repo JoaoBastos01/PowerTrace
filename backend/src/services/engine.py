@@ -2,7 +2,7 @@ import ezdxf
 import math
 from dataclasses import dataclass
 from typing import List, Literal
-from backend.models.base import BaseRoom
+from backend.src.domain.entities.base import BaseRoom
 
 
 @dataclass

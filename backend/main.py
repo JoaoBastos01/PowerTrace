@@ -1,9 +1,9 @@
-from backend.models.rooms import Kitchen
-from backend.services.drawing.engine import DXFGenerator, Opening
+from backend.src.domain.entities.rooms import Kitchen
+from backend.src.services.engine import DXFGenerator, Opening
 
 
 def run_powertrace_flow():
-    my_kitchen = Kitchen(name="Cozinha Principal", width=4.0, length=3.0)
+    my_kitchen = Kitchen(name="Cozinha Principal", width=3.0, length=4.0)
     my_kitchen.apply_nbr5410_rules()
 
     print("--- Detalhes do Cômodo ---")
