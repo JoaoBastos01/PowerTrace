@@ -3,15 +3,23 @@ from services.drawing.engine import DXFGenerator, Opening
 
 
 def run_powertrace_flow():
-    my_kitchen = Kitchen(name="Cozinha Principal", width=7.0, length=7.0)
+    my_kitchen = Kitchen(name="Cozinha Principal", width=3.0, length=4.0)
     my_kitchen.apply_nbr5410_rules()
 
+    # ── Detalhes do cômodo ──────────────────────────────────────────
     print("--- Detalhes do Cômodo ---")
     print(my_kitchen)
     for app in my_kitchen.appliances:
         print(f"  {app}")
 
-    # Janela na parede norte, centralizada: offset = (largura_parede - largura_janela) / 2
+    # ── Fluxo Room → Circuit → Dimensionamento ──────────────────────
+    print("\n--- Circuitos Dimensionados (NBR 5410) ---")
+    circuits = my_kitchen.build_circuits()
+    for circuit in circuits:
+        dim = circuit.dimension()
+        print(f"  {dim}")
+
+    # ── Geração do DXF ──────────────────────────────────────────────
     window_width = 1.2
     openings = [
         Opening(wall='S', offset=0.5, width=0.8, kind='door',   swing='right'),

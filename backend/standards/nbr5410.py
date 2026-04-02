@@ -1,83 +1,132 @@
+"""Padrões elétricos conforme ABNT NBR 5410:2004."""
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class WireSpec:
+    """Uma entrada da Tabela 38 da NBR 5410.
+
+    Refere-se a cabos de cobre com isolação PVC (70°C),
+    instalados em eletroduto (método B), temperatura ambiente 30°C.
+    """
+    gauge_mm2:   float  # seção transversal (mm²)
+    max_current: float  # corrente máxima suportada (A)
+    resistance:  float  # resistência elétrica (Ω/km)
+
+    def __str__(self):
+        return f"{self.gauge_mm2}mm² | {self.max_current}A | {self.resistance}Ω/km"
+
 
 class ElectricalStandards:
-    
-    # Tensões nominais para sistemas monofásicos, bifásicos e trifásicos, em volts
-    PHASE_NEUTRAL = 127
-    PHASE_PHASE = 220
-    THREE_PHASE = 380
-    
-    # Limites de Baixa Tensão (BT), Acima disso é considerado Alta Tensão (AT) para fins de instalação
-    AC_MAX_VOLTAGE = 1000
+
+    # ------------------------------------------------------------------
+    # Tensões nominais (V)
+    # ------------------------------------------------------------------
+    PHASE_NEUTRAL = 127   # monofásico fase-neutro
+    PHASE_PHASE   = 220   # bifásico fase-fase
+    THREE_PHASE   = 380   # trifásico
+
+    # ------------------------------------------------------------------
+    # Limites de tensão (BT = Baixa Tensão)
+    # ------------------------------------------------------------------
+    AC_MAX_VOLTAGE = 1000   # acima = Alta Tensão (AT)
     DC_MAX_VOLTAGE = 1500
 
-    # Extra Baixa Tensão (ELV - Extra Low Voltage), Limites de segurança para evitar choque elétrico fatal
+    # Extra Baixa Tensão (ELV) — limites de segurança anti-choque
     AC_ELV_LIMIT = 50
     DC_ELV_LIMIT = 120
 
-    # Queda de Tensão Máxima Permitida (Voltage Drop), Representados como decimais para facilitar cálculos (4% e 5%, respectivamente)
-    MAX_DROP_TERMINAL = 0.04
-    MAX_DROP_NETWORK = 0.05
-    
-    # Simplificação da tabela 38 da ABNT NBR 5410, que define a corrente máxima para cada seção transversal de cabo de cobre com isolação em PVC, considerando temperatura de referência do ambiente de 30°C(ar)    ), e de temperatura de 70°C no condutor 
-    WIRE_GAUGE_TABLE = [
-        (1.5, 17.5,  12.1),
-        (2.5, 24,    7.41),
-        (4.0, 32,    4.61),
-        (6.0, 41,    3.08),
-        (10.0, 57,   1.83),
-        (16.0, 76,   1.15),
-        (25.0, 101, 0.727),
-        (35.0, 125, 0.524),
-        (50.0, 151, 0.387)
+    # ------------------------------------------------------------------
+    # Queda de tensão máxima permitida (frações decimais)
+    # ------------------------------------------------------------------
+    MAX_DROP_TERMINAL = 0.04   # 4% — do ponto de entrega até a carga
+    MAX_DROP_NETWORK  = 0.05   # 5% — total da rede
+
+    # ------------------------------------------------------------------
+    # Tabela 38 — bitolas de cabo de cobre / PVC / método B / 30°C
+    # ------------------------------------------------------------------
+    WIRE_TABLE: list[WireSpec] = [
+        WireSpec(1.5,   17.5, 12.100),
+        WireSpec(2.5,   24.0,  7.410),
+        WireSpec(4.0,   32.0,  4.610),
+        WireSpec(6.0,   41.0,  3.080),
+        WireSpec(10.0,  57.0,  1.830),
+        WireSpec(16.0,  76.0,  1.150),
+        WireSpec(25.0, 101.0,  0.727),
+        WireSpec(35.0, 125.0,  0.524),
+        WireSpec(50.0, 151.0,  0.387),
     ]
-    
-    # Lista de Disjuntores Comerciais comuns (Amperes)
-    COMERCIAL_CIRCUIT_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100]
-    
-    
-    # Função para calcular a bitola do cabo com base na carga, tensão e fator de potência
+
+    # ------------------------------------------------------------------
+    # Disjuntores comerciais comuns (A)
+    # ------------------------------------------------------------------
+    BREAKERS: list[int] = [10, 16, 20, 25, 32, 40, 50, 63, 70, 80, 100]
+
+    # ------------------------------------------------------------------
+    # Métodos de dimensionamento
+    # ------------------------------------------------------------------
+
     @staticmethod
-    def calculate_gauge(load, voltage, pf=1.0):
-        """Calcula a bitola mínima do condutor e o disjuntor adequado
-        para uma dada carga elétrica, conforme NBR 5410:2004 Tabela 38.
+    def select_breaker(design_current: float) -> int:
+        """Retorna o menor disjuntor comercial que suporta a corrente dimensionada.
 
-        Calcula a corrente com base na carga, tensão e fator de potência,
-        aplica uma margem de segurança de 10% e seleciona o disjuntor e a
-        bitola do cabo de acordo com as tabelas da NBR 5410.
-        
-        Considera instalação em eletroduto (método B), temperatura
-        ambiente de 30°C e condutor de cobre com isolação PVC (70°C).
-
-        Argumentos:
-            load -- a carga de potência em Watts (W).
-            voltage -- a tensão de operação em Volts (V).
-            pf -- o fator de potência (padrão 1.0).
-
-        Retorna:
-            Um dicionário contendo a corrente real, corrente dimensionada,
-            bitola do fio, capacidade máxima, resistência por km e o disjuntor recomendado.
+        Critério: In >= Ib (corrente nominal do disjuntor >= corrente de projeto).
 
         Levanta:
-            ValueError -- se a carga exceder os limites da NBR 5410.
+            ValueError -- se a corrente exceder o maior disjuntor da tabela.
         """
-        # Cálculo da corrente, em amperes
-        # I = P / (V * PF)
-        current = load / (voltage * pf)
-        
-        # Margem de 10% para segurança e futuras expansões, conforme recomendado pela norma
+        breaker = next(
+            (b for b in ElectricalStandards.BREAKERS if b >= design_current),
+            None
+        )
+        if breaker is None:
+            raise ValueError(
+                f"Corrente dimensionada {design_current:.2f}A excede o maior "
+                f"disjuntor disponível ({ElectricalStandards.BREAKERS[-1]}A)."
+            )
+        return breaker
+
+    @staticmethod
+    def select_wire(design_current: float) -> WireSpec:
+        """Retorna a menor bitola de cabo que suporta a corrente dimensionada.
+
+        Critério: Iz >= In  (capacidade do cabo >= disjuntor selecionado).
+
+        Levanta:
+            ValueError -- se a corrente exceder a tabela NBR 5410.
+        """
+        breaker = ElectricalStandards.select_breaker(design_current)
+        for spec in ElectricalStandards.WIRE_TABLE:
+            if spec.max_current >= breaker:
+                return spec
+        raise ValueError(
+            f"Nenhuma bitola na tabela NBR 5410 suporta {design_current:.2f}A."
+        )
+
+    @staticmethod
+    def calculate_gauge(load: float, voltage: float, pf: float = 1.0) -> dict:
+        """Dimensiona condutor e disjuntor para uma dada carga.
+
+        Aplica margem de segurança de 10% sobre a corrente calculada,
+        conforme recomendação da NBR 5410.
+
+        Argumentos:
+            load    -- potência em Watts (W).
+            voltage -- tensão de operação em Volts (V).
+            pf      -- fator de potência (padrão 1.0).
+
+        Retorna:
+            Dicionário com corrente real, corrente dimensionada,
+            disjuntor recomendado e especificação do cabo (WireSpec).
+        """
+        current        = load / (voltage * pf)
         design_current = current * 1.10
-        
-        # Encontra o disjuntor adequado (In >= Ib)
-        breaker = next((b for b in ElectricalStandards.COMERCIAL_CIRCUIT_BREAKERS if b >= design_current), ElectricalStandards.COMERCIAL_CIRCUIT_BREAKERS[-1])
-            
-        for gauge, max_amp, res in ElectricalStandards.WIRE_GAUGE_TABLE:
-            if max_amp >= breaker: # Iz >= In
-                return {
-                    "corrente": f"{current:.2f}A",
-                    "corrente dimensionada": f"{design_current:.2f}A",
-                    "bitola": f"{gauge}mm²",
-                    "corrente máxima": f"{max_amp}A",
-                    "resistência por km": f"{res}Ω/km",
-                    "disjuntor recomendado": f"{breaker}A"
-                }
-        raise ValueError(f"A carga de {load}W excede a capacidade máxima da tabela da NBR 5410")
+        breaker        = ElectricalStandards.select_breaker(design_current)
+        wire           = ElectricalStandards.select_wire(design_current)
+
+        return {
+            "corrente":             round(current, 2),
+            "corrente_dimensionada": round(design_current, 2),
+            "disjuntor":            breaker,
+            "cabo":                 wire,
+        }
