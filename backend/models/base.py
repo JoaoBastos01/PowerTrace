@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 
 class BaseRoom(ABC):
-    def __init__(self, name, width, length, voltage=127):
+    def __init__(self, name, width, length, voltage=127, origin=(0, 0)):
         self.name = name
         self.width = width
         self.length = length
         self.voltage = voltage
-        self.origin = (0, 0)
+        self.origin = origin
         self.appliances = []
         
     @property

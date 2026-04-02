@@ -1,4 +1,4 @@
-from backend.standards.nbr5410 import ElectricalStandards
+from standards.nbr5410 import ElectricalStandards
 
 class Circuit:
     def __init__(self, circuit_id, voltage=127, pf=0.92):
