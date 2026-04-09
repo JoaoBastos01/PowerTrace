@@ -35,7 +35,7 @@ class DXFGenerator:
         draw_room_structure(self.msp, room, wall_thickness, openings)
 
     def draw_lighting(self, room: BaseRoom) -> None:
-        """Símbolo de ponto de iluminação no centro do cômodo."""
+        """Distribui os pontos de iluminação em grade uniforme no cômodo."""
         draw_lighting(self.msp, room)
 
     def draw_appliances(self, room: BaseRoom,
