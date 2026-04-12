@@ -39,9 +39,11 @@ class DXFGenerator:
         draw_lighting(self.msp, room)
 
     def draw_appliances(self, room: BaseRoom,
-                        wall_thickness: float = 0.15) -> None:
-        """Distribui os pontos de TUG ao longo do perímetro do cômodo."""
-        draw_appliances(self.msp, room, wall_thickness)
+                        wall_thickness: float = 0.15,
+                        openings: List[Opening] = None) -> None:
+        """Distribui os pontos de TUG ao longo do perímetro do cômodo,
+        evitando posicionamento sobre portas e janelas."""
+        draw_appliances(self.msp, room, wall_thickness, openings)
 
     # ------------------------------------------------------------------
     # Persistência
@@ -50,4 +52,4 @@ class DXFGenerator:
     def save(self, filename: str = "output.dxf") -> None:
         """Salva o documento DXF no caminho especificado."""
         self.doc.saveas(filename)
-        print(f"Arquivo DXF salvo como '{filename}'")
+        print(f"DXF file saved as '{filename}'")

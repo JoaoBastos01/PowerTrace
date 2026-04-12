@@ -30,7 +30,8 @@ def run_powertrace_flow():
     generator = DXFGenerator()
     generator.draw_room_structure(my_kitchen, openings=openings)
     generator.draw_lighting(my_kitchen)
-    generator.draw_appliances(my_kitchen)
+    generator.draw_appliances(my_kitchen, openings=openings)
+
     generator.save("kitchen_test.dxf")
 
 
