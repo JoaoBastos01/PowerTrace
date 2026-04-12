@@ -37,7 +37,7 @@ class Kitchen(BaseRoom):
         """TUGs distributed along the perimeter, max. 3.5m between points (NBR 5410)."""
         qty = math.ceil(self.perimeter / 3.5)
         for i in range(qty):
-            wattage = 600 if i < 3 else 100  # 3 primeiros são de bancada
+            wattage = 600 if i < 3 else 100  # the first 3 are countertop outlets
             self.add_appliance(
                 Appliance(
                     name=f"TUG cozinha {i + 1}",
