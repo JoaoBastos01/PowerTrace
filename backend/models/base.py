@@ -1,4 +1,5 @@
 """Modelo base para todos os cômodos do PowerTrace."""
+
 from abc import ABC, abstractmethod
 from typing import List
 
@@ -10,30 +11,36 @@ _VALID_ROOM_TYPES = {"kitchen", "bedroom", "living", "bathroom", "corridor", "ga
 class BaseRoom(ABC):
     """Cômodo genérico com dimensões, cargas e geração de circuitos NBR 5410."""
 
-    ROOM_TYPE: str   # obrigatório em toda subclasse concreta
+    ROOM_TYPE: str  # obrigatório em toda subclasse concreta
 
     def __init_subclass__(cls, **kwargs):
         """Garante que toda subclasse concreta declare ROOM_TYPE válido."""
         super().__init_subclass__(**kwargs)
-        if not getattr(cls, '__abstractmethods__', None):   # é concreta
-            if 'ROOM_TYPE' not in cls.__dict__:
+        if not getattr(cls, "__abstractmethods__", None):  # é concreta
+            if "ROOM_TYPE" not in cls.__dict__:
                 raise TypeError(
                     f"'{cls.__name__}' deve declarar ROOM_TYPE. "
                     f"Valores válidos: {sorted(_VALID_ROOM_TYPES)}"
                 )
-            if cls.__dict__['ROOM_TYPE'] not in _VALID_ROOM_TYPES:
+            if cls.__dict__["ROOM_TYPE"] not in _VALID_ROOM_TYPES:
                 raise ValueError(
                     f"'{cls.__name__}.ROOM_TYPE = {cls.__dict__['ROOM_TYPE']!r}' inválido. "
                     f"Valores válidos: {sorted(_VALID_ROOM_TYPES)}"
                 )
 
-    def __init__(self, name: str, width: float, length: float,
-                 voltage: int = 127, origin: tuple = (0, 0)):
-        self.name      = name
-        self.width     = width
-        self.length    = length
-        self.voltage   = voltage
-        self.origin    = origin
+    def __init__(
+        self,
+        name: str,
+        width: float,
+        length: float,
+        voltage: int = 127,
+        origin: tuple = (0, 0),
+    ):
+        self.name = name
+        self.width = width
+        self.length = length
+        self.voltage = voltage
+        self.origin = origin
         self.appliances: List[Appliance] = []
 
     # ------------------------------------------------------------------
@@ -106,7 +113,8 @@ class BaseRoom(ABC):
         for a in dedicated:
             c = Circuit(
                 f"{self.name}_{a.name.upper().replace(' ', '_')}",
-                voltage=self.voltage
+                voltage=a.voltage,
+                pf=a.pf,
             )
             c.add_load_point(a)
             circuits.append(c)
