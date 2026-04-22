@@ -1,5 +1,5 @@
 """Modelo de circuito elétrico conforme NBR 5410."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from standards.nbr5410 import ElectricalStandards, WireSpec
 

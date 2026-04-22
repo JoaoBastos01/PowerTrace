@@ -58,6 +58,14 @@ def draw_room_structure(msp, room: BaseRoom,
     w, l = room.width, room.length
     t    = wall_thickness
 
+    ext_walls = getattr(room, 'exterior_walls', {'N', 'S', 'E', 'W'})
+
+    # Fatores de encolhimento para tratar paredes compartilhadas = t/2. Rua = t.
+    ts = t if 'S' in ext_walls else t / 2.0
+    tn = t if 'N' in ext_walls else t / 2.0
+    te = t if 'E' in ext_walls else t / 2.0
+    tw = t if 'W' in ext_walls else t / 2.0
+
     # ---- Definição das 4 paredes externas (p1, p2, comprimento) ----
     outer_walls = {
         'S': ((x,     y    ), (x + w, y    ), w),
@@ -74,23 +82,42 @@ def draw_room_structure(msp, room: BaseRoom,
         start = op.offset
         end   = op.offset + op.width
         outer_gaps[op.wall].append((start, end))
-        if op.kind == 'door':
-            # A face interna tem o mesmo gap com offset de -t (espessura)
-            inner_gaps[op.wall].append((start - t, end - t))
+        
+        # Diferente offset shift dependo da parede:
+        ds = tw if op.wall == 'S' else (ts if op.wall == 'E' else (te if op.wall == 'N' else tn))
+        
+        if op.kind in ['door', 'window', 'gap']:
+            # Puncionando o inner_wall em aberturas E no cômodo passivo 'gap'
+            inner_gaps[op.wall].append((start - ds, end - ds))
 
     # ---- Paredes externas ----
     for wid, (p1, p2, _) in outer_walls.items():
-        draw_wall_segment(msp, p1, p2, outer_gaps[wid], "PT_WALLS_OUTER")
+        if wid in ext_walls:  # SÓ desenha muro se ele for exterior!
+            draw_wall_segment(msp, p1, p2, outer_gaps[wid], "PT_WALLS_OUTER")
 
-    # ---- Paredes internas ----
+    # ---- Paredes internas (Puncionamentos e Esquadrias Masonry) ----
+    from .geometry import wall_unit_vector, inward_normal
     inner_walls = {
-        'S': ((x + t,     y + t    ), (x + w - t, y + t    )),
-        'E': ((x + w - t, y + t    ), (x + w - t, y + l - t)),
-        'N': ((x + w - t, y + l - t), (x + t,     y + l - t)),
-        'W': ((x + t,     y + l - t), (x + t,     y + t    )),
+        'S': ((x + tw,     y + ts    ), (x + w - te, y + ts    )),
+        'E': ((x + w - te, y + ts    ), (x + w - te, y + l - tn)),
+        'N': ((x + w - te, y + l - tn), (x + tw,     y + l - tn)),
+        'W': ((x + tw,     y + l - tn), (x + tw,     y + ts    )),
     }
     for wid, (p1, p2) in inner_walls.items():
         draw_wall_segment(msp, p1, p2, inner_gaps[wid], "PT_WALLS_INNER")
+        
+        # Selar as cabeceiras cortadas com as tampas perpendiculares (Fechamento da Alvenaria DXF)
+        (ux, uy), _ = wall_unit_vector(p1, p2)
+        in_x, in_y = inward_normal(ux, uy)
+        seal_dist = ts if wid == 'S' else (te if wid == 'E' else (tn if wid == 'N' else tw))
+        
+        for g_start, g_end in inner_gaps[wid]:
+            px1, py1 = p1[0] + ux * g_start, p1[1] + uy * g_start
+            px2, py2 = p1[0] + ux * g_end,   p1[1] + uy * g_end
+            
+            # Linha desenha do recuo de dentro da sala para 'fora' (-in_x) selando no osso geométrico do vizinho
+            msp.add_line((px1, py1), (px1 - in_x * seal_dist, py1 - in_y * seal_dist), dxfattribs={"layer": "PT_WALLS_INNER"})
+            msp.add_line((px2, py2), (px2 - in_x * seal_dist, py2 - in_y * seal_dist), dxfattribs={"layer": "PT_WALLS_INNER"})
 
     # ---- Legenda central ----
     msp.add_text(
@@ -100,8 +127,18 @@ def draw_room_structure(msp, room: BaseRoom,
 
     # ---- Símbolos das aberturas ----
     for op in openings:
-        p1, p2, _ = outer_walls[op.wall]
         if op.kind == 'door':
-            draw_door_symbol(msp, op, p1, p2)
-        else:
+            # Portas penduram-se na face INTERNA (linha ciano) para o swing não flutuar
+            p1, p2 = inner_walls[op.wall]
+            ds = tw if op.wall == 'S' else (ts if op.wall == 'E' else (te if op.wall == 'N' else tn))
+            
+            # Reposiciona o offset do simbolo da porta para a reta interna encolhida
+            inner_op = Opening(wall=op.wall, offset=op.offset - ds, width=op.width, kind=op.kind, swing=op.swing)
+            draw_door_symbol(msp, inner_op, p1, p2)
+            
+        elif op.kind == 'window':
+            # Janelas penduram-se na face EXTERNA
+            p1, p2, _ = outer_walls[op.wall]
             draw_window_symbol(msp, op, p1, p2)
+            
+        # Importante: Se op.kind == 'gap', não renderiza símbolos matemáticos (usado para o quarto não desenhar a porta de novo, cedendo pra sala)

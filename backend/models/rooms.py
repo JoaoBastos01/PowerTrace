@@ -237,8 +237,6 @@ class Garage(BaseRoom):
         )
 
     def _apply_gate(self) -> None:
-        # FIX: PF adicionado como 0.92
-        # Motivo: O portão automático possui um motor (carga indutiva), logo pf não é 1.0.
         self.add_appliance(
             Appliance(
                 name="Motor do portão",
@@ -246,4 +244,4 @@ class Garage(BaseRoom):
                 type=ApplianceType.DEDICATED,
                 pf=0.92,
             )
-            )
+        )

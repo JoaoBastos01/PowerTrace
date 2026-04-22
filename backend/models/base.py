@@ -1,4 +1,4 @@
-"""Modelo base para todos os cômodos do PowerTrace."""
+"""Base model to all the PoweTrace's rooms."""
 
 from abc import ABC, abstractmethod
 from typing import List
@@ -9,14 +9,14 @@ _VALID_ROOM_TYPES = {"kitchen", "bedroom", "living", "bathroom", "corridor", "ga
 
 
 class BaseRoom(ABC):
-    """Cômodo genérico com dimensões, cargas e geração de circuitos NBR 5410."""
+    """Generic room with dimensions, loads and NBR 5410 circuit generation."""
 
-    ROOM_TYPE: str  # obrigatório em toda subclasse concreta
+    ROOM_TYPE: str  # required in every concrete subclass
 
     def __init_subclass__(cls, **kwargs):
-        """Garante que toda subclasse concreta declare ROOM_TYPE válido."""
+        """Ensures that every concrete subclass declares a valid ROOM_TYPE."""
         super().__init_subclass__(**kwargs)
-        if not getattr(cls, "__abstractmethods__", None):  # é concreta
+        if not getattr(cls, "__abstractmethods__", None):  # is concrete
             if "ROOM_TYPE" not in cls.__dict__:
                 raise TypeError(
                     f"'{cls.__name__}' deve declarar ROOM_TYPE. "
@@ -44,7 +44,7 @@ class BaseRoom(ABC):
         self.appliances: List[Appliance] = []
 
     # ------------------------------------------------------------------
-    # Propriedades geométricas
+    # Geometric properties
     # ------------------------------------------------------------------
 
     @property
@@ -56,7 +56,7 @@ class BaseRoom(ABC):
         return 2 * (self.width + self.length)
 
     # ------------------------------------------------------------------
-    # Gestão de cargas
+    # Load management
     # ------------------------------------------------------------------
 
     def add_appliance(self, appliance: Appliance) -> None:
@@ -71,28 +71,28 @@ class BaseRoom(ABC):
 
     @abstractmethod
     def apply_nbr5410_rules(self) -> None:
-        """Aplica as regras NBR 5410 específicas para este tipo de cômodo.
+        """Applies NBR 5410 rules specific to this room type.
 
-        Cada subclasse deve preencher `self.appliances` com os pontos
-        de carga exigidos pela norma (TUGs, iluminação, dedicados).
+        Each subclass must fill `self.appliances` with the load points
+        required by the standard (TUGs, lighting, dedicated).
         """
 
     def build_circuits(self) -> list:
-        """Agrupa os appliances em circuitos conforme NBR 5410.
+        """Groups appliances into circuits according to NBR 5410.
 
-        Regras de agrupamento:
-          - LIGHTING   → 1 circuito de iluminação por cômodo
-          - GENERAL    → 1 circuito de TUGs gerais por cômodo
-          - DEDICATED  → 1 circuito exclusivo por carga dedicada
+        Grouping rules:
+          - LIGHTING   → 1 lighting circuit per room
+          - GENERAL    → 1 general TUG circuit per room
+          - DEDICATED  → 1 dedicated circuit per dedicated load
 
-        Retorna:
-            Lista de Circuit já populados, prontos para dimensionamento.
+        Returns:
+            List of already populated Circuits, ready for sizing.
         """
-        from .circuit import Circuit  # import local para evitar ciclo
+        from .circuit import Circuit  # local import to avoid cycle
 
         circuits = []
 
-        # ── Iluminação ────────────────────────────────────────────────
+        # ── Lighting ────────────────────────────────────────────────
         lighting = [a for a in self.appliances if a.type == ApplianceType.LIGHTING]
         if lighting:
             c = Circuit(f"{self.name}_LUZ", voltage=self.voltage)
@@ -100,7 +100,7 @@ class BaseRoom(ABC):
                 c.add_load_point(a)
             circuits.append(c)
 
-        # ── TUGs gerais ───────────────────────────────────────────────
+        # ── General circuits ─────────────────────────────────────────
         general = [a for a in self.appliances if a.type == ApplianceType.GENERAL]
         if general:
             c = Circuit(f"{self.name}_TUG", voltage=self.voltage)
@@ -108,7 +108,7 @@ class BaseRoom(ABC):
                 c.add_load_point(a)
             circuits.append(c)
 
-        # ── Circuitos dedicados (um por carga) ────────────────────────
+        # ── Dedicated circuits (one per load) ────────────────────────
         dedicated = [a for a in self.appliances if a.type == ApplianceType.DEDICATED]
         for a in dedicated:
             c = Circuit(
@@ -122,7 +122,7 @@ class BaseRoom(ABC):
         return circuits
 
     # ------------------------------------------------------------------
-    # Representação
+    # Representation
     # ------------------------------------------------------------------
 
     def __repr__(self):
