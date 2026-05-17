@@ -8,7 +8,7 @@ from .bsp import BSPNode
 class AdjacencyGraph:
     """Monta o grafo de conexões físicas entre cômodos e valida regras de arquitetura."""
 
-    DOOR_MIN_SPACE = 0.8
+    DOOR_MIN_SPACE = 1.2
 
     def __init__(self, nodes: List[BSPNode]):
         self.rooms: Dict[str, RoomSpec] = {}
@@ -48,6 +48,10 @@ class AdjacencyGraph:
         for room, adjacencies in self.edges.items():
             if room.startswith("bathroom"):
                 allowed_hubs = {"living", "living_kitchen", "corridor"} | {k for k in self.edges if k.startswith("bedroom")}
+                if not any(hub in adjacencies for hub in allowed_hubs):
+                    return False
+            if room.startswith("bedroom"):
+                allowed_hubs = {"living", "living_kitchen", "corridor"}
                 if not any(hub in adjacencies for hub in allowed_hubs):
                     return False
         return True

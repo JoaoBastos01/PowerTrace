@@ -96,6 +96,21 @@ def validate_topology(leaves: List[BSPNode], program: HouseProgram) -> bool:
         for j in range(i + 1, len(baths)):
             if _adjacent(nodes[baths[i]], nodes[baths[j]], 0.05):
                 return False
+
+    # Enforce Corridor Centrality
+    if 'corridor' in graph.edges:
+        corridor_adjs = graph.edges['corridor']
+        # Must connect to the living area
+        if 'living' not in corridor_adjs and 'living_kitchen' not in corridor_adjs:
+            return False
+        
+        # Must connect to at least 2 private rooms (bedrooms or bathrooms)
+        private_adjs = [r for r in corridor_adjs if r.startswith('bedroom') or r.startswith('bathroom')]
+        total_private = sum(1 for r in program.rooms if r.startswith('bedroom') or r.startswith('bathroom'))
+        required_private_adjs = min(2, total_private)
+        if len(private_adjs) < required_private_adjs:
+            return False
+
     return True
 
 

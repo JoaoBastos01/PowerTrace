@@ -10,39 +10,82 @@ class OpeningsPlacer:
     """Distribui portas e janelas com base no grafo de intersecções."""
 
     @staticmethod
+    def _get_edge_cost(r1: str, r2: str) -> int:
+        """Determina o custo arquitetônico de conectar dois cômodos."""
+        def base(name):
+            if name.startswith('bedroom'): return 'bedroom'
+            if name.startswith('bathroom'): return 'bathroom'
+            return name
+        
+        pair = frozenset([base(r1), base(r2)])
+        costs = {
+            frozenset(['corridor', 'bedroom']): 1,
+            frozenset(['corridor', 'bathroom']): 1,
+            frozenset(['corridor', 'living']): 1,
+            frozenset(['living', 'kitchen']): 1,
+            frozenset(['living_kitchen', 'bedroom']): 1,
+            frozenset(['living_kitchen', 'bathroom']): 1,
+            frozenset(['bedroom', 'bathroom']): 2,   # Suite
+            frozenset(['living', 'bedroom']): 5,     # Acesso direto pela sala
+            frozenset(['kitchen', 'corridor']): 10,  
+            frozenset(['living', 'bathroom']): 20,
+            frozenset(['kitchen', 'bedroom']): 50,
+            frozenset(['bedroom', 'bedroom']): 50,   # Quarto "passa-prato"
+            frozenset(['kitchen', 'bathroom']): 100, # Péssimo
+            frozenset(['bathroom', 'bathroom']): 100,
+        }
+        return costs.get(pair, 200)
+
+    @staticmethod
     def generate_openings(plan: FloorPlan, graph: AdjacencyGraph) -> Dict[str, List[Opening]]:
         """Gera o dicionário injetável de Openings para o DXFGenerator."""
         openings_dict: Dict[str, List[Opening]] = {rspec.room_type: [] for rspec in plan.rooms}
         placed_doors = set()
-        doors_count = {rspec.room_type: 0 for rspec in plan.rooms}
+        
+        # Build MST (Prim's algorithm) to guarantee access with minimum architectural cost
+        root_room = 'living' if any(r.room_type == 'living' for r in plan.rooms) else 'living_kitchen'
+        if not any(r.room_type == root_room for r in plan.rooms):
+            root_room = plan.rooms[0].room_type
+
+        visited = {root_room}
+        spanning_edges = set()
+        import heapq
+        
+        edges_pq = []
+        for neighbor in graph.edges[root_room]:
+            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(root_room, neighbor), root_room, neighbor))
+            
+        while edges_pq:
+            cost, u, v = heapq.heappop(edges_pq)
+            if v not in visited:
+                visited.add(v)
+                spanning_edges.add(tuple(sorted([u, v])))
+                
+                # Prevent bathrooms from acting as corridors/pass-throughs
+                if not v.startswith('bathroom'):
+                    for neighbor in graph.edges[v]:
+                        if neighbor not in visited:
+                            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(v, neighbor), v, neighbor))
 
         for room_name, adj_set in graph.edges.items():
             r1 = graph.rooms[room_name]
-            sorted_adjs = sorted(list(adj_set), key=lambda r: 0 if r in ['living', 'corridor'] else 1)
-
-            for adj_name in sorted_adjs:
+            
+            for adj_name in adj_set:
                 edge_id = tuple(sorted([room_name, adj_name]))
+                if edge_id not in spanning_edges:
+                    continue
                 if edge_id in placed_doors:
                     continue
-                is_r1_hub = room_name in ['living', 'corridor']
-                is_r2_hub = adj_name in ['living', 'corridor']
-                if not is_r1_hub and doors_count[room_name] >= 1:
-                    continue
-                if not is_r2_hub and doors_count[adj_name] >= 1:
-                    continue
-                doors_count[room_name] += 1
-                doors_count[adj_name] += 1
+                
                 r2 = graph.rooms[adj_name]
                 door_w = 0.8
-                boneca_ideal = 0.15
 
                 if abs((r1.x + r1.width) - r2.x) < 0.05:
                     y_start = max(r1.y, r2.y)
                     y_end = min(r1.y + r1.length, r2.y + r2.length)
                     overlap = y_end - y_start
                     if overlap < door_w: continue
-                    boneca = min(boneca_ideal, (overlap - door_w) / 2.0)
-                    abs_y = y_start + boneca
+                    abs_y = y_start + (overlap - door_w) / 2.0
                     off_r1 = abs_y - r1.y
                     off_r2 = (r2.y + r2.length) - (abs_y + door_w)
                     openings_dict[r1.room_type].append(Opening(wall='E', offset=off_r1, width=door_w, kind='gap', swing='right'))
@@ -55,8 +98,7 @@ class OpeningsPlacer:
                     y_end = min(r1.y + r1.length, r2.y + r2.length)
                     overlap = y_end - y_start
                     if overlap < door_w: continue
-                    boneca = min(boneca_ideal, (overlap - door_w) / 2.0)
-                    abs_y = y_start + boneca
+                    abs_y = y_start + (overlap - door_w) / 2.0
                     off_r2 = abs_y - r2.y
                     off_r1 = (r1.y + r1.length) - (abs_y + door_w)
                     openings_dict[r2.room_type].append(Opening(wall='E', offset=off_r2, width=door_w, kind='gap', swing='right'))
@@ -69,8 +111,7 @@ class OpeningsPlacer:
                     x_end = min(r1.x + r1.width, r2.x + r2.width)
                     overlap = x_end - x_start
                     if overlap < door_w: continue
-                    boneca = min(boneca_ideal, (overlap - door_w) / 2.0)
-                    abs_x = x_start + boneca
+                    abs_x = x_start + (overlap - door_w) / 2.0
                     off_r2 = abs_x - r2.x
                     off_r1 = (r1.x + r1.width) - (abs_x + door_w)
                     openings_dict[r1.room_type].append(Opening(wall='N', offset=off_r1, width=door_w, kind='gap', swing='right'))
@@ -83,8 +124,7 @@ class OpeningsPlacer:
                     x_end = min(r1.x + r1.width, r2.x + r2.width)
                     overlap = x_end - x_start
                     if overlap < door_w: continue
-                    boneca = min(boneca_ideal, (overlap - door_w) / 2.0)
-                    abs_x = x_start + boneca
+                    abs_x = x_start + (overlap - door_w) / 2.0
                     off_r1 = abs_x - r1.x
                     off_r2 = (r2.x + r2.width) - (abs_x + door_w)
                     openings_dict[r1.room_type].append(Opening(wall='S', offset=off_r1, width=door_w, kind='gap', swing='right'))
@@ -116,8 +156,14 @@ class OpeningsPlacer:
                 win_w = 1.2
                 if rspec.room_type.startswith("bathroom"):
                     win_w = 0.60
-                win_off = (wall_length / 2) - (win_w / 2)
-                if win_off > 0 and (win_off + win_w) < wall_length:
+                
+                # Minimum margin required (0.15m wall + 0.05m inner boneca)
+                min_margin = 0.20
+                if wall_length < win_w + 2 * min_margin:
+                    win_w = wall_length - 2 * min_margin
+                
+                if win_w >= 0.40:  # Minimum acceptable window size
+                    win_off = (wall_length / 2) - (win_w / 2)
                     openings_dict[rspec.room_type].append(Opening(wall=main_ext, offset=win_off, width=win_w, kind='window'))
 
         return openings_dict
