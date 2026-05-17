@@ -102,3 +102,27 @@ def draw_window_symbol(msp, op: Opening,
             (p_end[0]   + ox, p_end[1]   + oy),
             dxfattribs={"layer": "PT_WINDOWS"},
         )
+
+def draw_garage_door_symbol(msp, op: Opening,
+                            wall_start: tuple, wall_end: tuple) -> None:
+    """Símbolo de portão de garagem (linha tracejada)."""
+    (ux, uy), _ = wall_unit_vector(wall_start, wall_end)
+    
+    p_start = (
+        wall_start[0] + ux * op.offset,
+        wall_start[1] + uy * op.offset,
+    )
+    
+    dash_len = 0.2
+    gap_len = 0.15
+    dist = op.width
+    cursor = 0.0
+    
+    while cursor < dist:
+        seg_end = min(cursor + dash_len, dist)
+        x1 = p_start[0] + ux * cursor
+        y1 = p_start[1] + uy * cursor
+        x2 = p_start[0] + ux * seg_end
+        y2 = p_start[1] + uy * seg_end
+        msp.add_line((x1, y1), (x2, y2), dxfattribs={"layer": "PT_DOORS"})
+        cursor += dash_len + gap_len

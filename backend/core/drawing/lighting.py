@@ -48,4 +48,6 @@ def draw_lighting(msp, room: BaseRoom) -> None:
             cx = x + ex / 2 + col * ex
             cy = y + ey / 2 + row * ey
             _draw_lighting_symbol(msp, cx, cy)
+            watt_text = f"{lights[idx].wattage}W"
+            msp.add_text(watt_text, dxfattribs={"height": 0.1, "layer": "PT_TEXT"}).set_placement((cx + 0.1, cy + 0.1))
             idx += 1

@@ -54,6 +54,14 @@ class AdjacencyGraph:
                 allowed_hubs = {"living", "living_kitchen", "corridor"}
                 if not any(hub in adjacencies for hub in allowed_hubs):
                     return False
+            if room.startswith("kitchen") and not room.startswith("living_kitchen"):
+                allowed_hubs = {"living", "corridor"}
+                if not any(hub in adjacencies for hub in allowed_hubs):
+                    return False
+            if room.startswith("garage"):
+                allowed_hubs = {"living", "corridor", "kitchen"}
+                if not any(hub in adjacencies for hub in allowed_hubs):
+                    return False
         return True
 
     def _is_connected(self) -> bool:

@@ -18,7 +18,7 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
     # Número máximo de tentativas de geração de planta
-    max_generation_attempts: int = int(os.getenv("MAX_GENERATION_ATTEMPTS", "1000"))
+    max_generation_attempts: int = int(os.getenv("MAX_GENERATION_ATTEMPTS", "3000"))
 
 
 settings = Settings()

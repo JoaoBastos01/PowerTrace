@@ -171,6 +171,17 @@ def validate_topology(leaves: List[BSPNode], program: HouseProgram) -> bool:
         if len(private_adjs) < required_private_adjs:
             return False
 
+    # Enforce realistic aspect ratios for rooms (prevent noodles)
+    for node in leaves:
+        if node.room_type == 'corridor':
+            continue
+        aspect = max(node.width, node.length) / min(node.width, node.length)
+        
+        # Bathrooms can be somewhat long (e.g. 1.2 x 3.6), but not extreme
+        max_aspect = 3.5 if node.room_type.startswith('bathroom') else 3.0
+        if aspect > max_aspect:
+            return False
+
     return True
 
 

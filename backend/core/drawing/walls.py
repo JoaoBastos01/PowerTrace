@@ -63,7 +63,7 @@ def draw_room_structure(msp, room: BaseRoom,
         end   = op.offset + op.width
         outer_gaps[op.wall].append((start, end))
         ds = tw if op.wall == 'S' else (ts if op.wall == 'E' else (te if op.wall == 'N' else tn))
-        if op.kind in ['door', 'window', 'gap']:
+        if op.kind in ['door', 'window', 'gap', 'garage_door']:
             inner_gaps[op.wall].append((start - ds, end - ds))
 
     for wid, (p1, p2, _) in outer_walls.items():
@@ -102,3 +102,7 @@ def draw_room_structure(msp, room: BaseRoom,
         elif op.kind == 'window':
             p1, p2, _ = outer_walls[op.wall]
             draw_window_symbol(msp, op, p1, p2)
+        elif op.kind == 'garage_door':
+            p1, p2, _ = outer_walls[op.wall]
+            from .openings import draw_garage_door_symbol
+            draw_garage_door_symbol(msp, op, p1, p2)
