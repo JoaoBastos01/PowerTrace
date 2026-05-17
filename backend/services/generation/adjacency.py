@@ -68,7 +68,7 @@ class AdjacencyGraph:
         # O banheiro íntimo NUNCA deve ser obrigado a acessar a casa exclusivamente através da lavanderia ou cozinha.
         for room, adjacencies in self.edges.items():
             if room.startswith("bathroom"):
-                allowed_hubs = {"living", "corridor"} | {k for k in self.edges if k.startswith("bedroom")}
+                allowed_hubs = {"living", "living_kitchen", "corridor"} | {k for k in self.edges if k.startswith("bedroom")}
                 
                 # Se o banheiro possuir área social adjacente, passou na prova da "zona".
                 # Se nenhuma face dele toca zona social/íntima, ele falha (sendo banheiro zumbi) e a planta reseta.
