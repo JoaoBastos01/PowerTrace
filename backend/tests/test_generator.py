@@ -3,10 +3,10 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.generation.generator import FloorPlanGenerator
-from services.drawing.engine import DXFGenerator
-from services.generation.openings_placer import OpeningsPlacer
-from models.rooms import Kitchen, Bathroom, Bedroom, Living, Corridor, Garage, LivingKitchen
+from core.generation.generator import FloorPlanGenerator
+from core.drawing.geometry import DXFGenerator
+from core.electrical.standards import OpeningsPlacer
+from core.electrical.standards import Kitchen, Bathroom, Bedroom, Living, Corridor, Garage, LivingKitchen
 
 # Mapa de room_type → Classe NBR 5410
 # O room_type vem do generator (ex: "bedroom_1", "bathroom_2")
