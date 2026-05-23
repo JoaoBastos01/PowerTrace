@@ -14,6 +14,7 @@ class OpeningsPlacer:
         """Determina o custo arquitetônico de conectar dois cômodos."""
         def base(name):
             if name.startswith('bedroom'): return 'bedroom'
+            if name == 'bathroom_social': return 'bathroom_social'
             if name.startswith('bathroom'): return 'bathroom'
             return name
         
@@ -23,8 +24,10 @@ class OpeningsPlacer:
             frozenset(['corridor', 'bathroom']): 1,
             frozenset(['corridor', 'living']): 1,
             frozenset(['living', 'kitchen']): 1,
+            frozenset(['living', 'bathroom_social']): 1,   # Social bathroom off living
             frozenset(['living_kitchen', 'bedroom']): 1,
             frozenset(['living_kitchen', 'bathroom']): 1,
+            frozenset(['living_kitchen', 'bathroom_social']): 1,
             frozenset(['bedroom', 'bathroom']): 2,   # Suite
             frozenset(['living', 'bedroom']): 5,     # Acesso direto pela sala
             frozenset(['kitchen', 'corridor']): 10,  
@@ -33,6 +36,8 @@ class OpeningsPlacer:
             frozenset(['bedroom', 'bedroom']): 50,   # Quarto "passa-prato"
             frozenset(['kitchen', 'bathroom']): 100, # Péssimo
             frozenset(['bathroom', 'bathroom']): 100,
+            frozenset(['bedroom', 'bathroom_social']): 200,  # Never — social banheiro off bedroom
+            frozenset(['bathroom_social', 'bathroom']): 200, # Never
             
             # Garage logic
             frozenset(['garage', 'living']): 1,
@@ -40,6 +45,7 @@ class OpeningsPlacer:
             frozenset(['garage', 'corridor']): 10,
             frozenset(['garage', 'bedroom']): 200,   # Never
             frozenset(['garage', 'bathroom']): 200,  # Never
+            frozenset(['garage', 'bathroom_social']): 200,  # Never
         }
         return costs.get(pair, 200)
 
@@ -47,8 +53,6 @@ class OpeningsPlacer:
     def generate_openings(plan: FloorPlan, graph: AdjacencyGraph) -> Dict[str, List[Opening]]:
         """Gera o dicionário injetável de Openings para o DXFGenerator."""
         openings_dict: Dict[str, List[Opening]] = {rspec.room_type: [] for rspec in plan.rooms}
-        placed_doors = set()
-        
         # Build MST (Prim's algorithm) to guarantee access with minimum architectural cost
         root_room = 'living' if any(r.room_type == 'living' for r in plan.rooms) else 'living_kitchen'
         if not any(r.room_type == root_room for r in plan.rooms):
@@ -59,7 +63,7 @@ class OpeningsPlacer:
         import heapq
         
         edges_pq = []
-        for neighbor in graph.edges[root_room]:
+        for neighbor in sorted(graph.edges[root_room]):
             heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(root_room, neighbor), root_room, neighbor))
             
         while edges_pq:
@@ -69,8 +73,8 @@ class OpeningsPlacer:
                 spanning_edges.add(tuple(sorted([u, v])))
                 
                 # Prevent bathrooms and garages from acting as corridors/pass-throughs
-                if not v.startswith('bathroom') and not v.startswith('garage'):
-                    for neighbor in graph.edges[v]:
+                if not v.startswith('bathroom') and not v.startswith('garage') and v != 'bathroom_social':
+                    for neighbor in sorted(graph.edges[v]):
                         if neighbor not in visited:
                             heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(v, neighbor), v, neighbor))
 
@@ -79,11 +83,12 @@ class OpeningsPlacer:
             if name.startswith('corridor'): return 1
             if name.startswith('kitchen'): return 2
             if name.startswith('bedroom'): return 3
+            if name == 'bathroom_social': return 4  # Social bathroom swings into itself
             if name.startswith('bathroom'): return 4
             if name.startswith('garage'): return 5
             return 10
 
-        for edge_id in spanning_edges:
+        for edge_id in sorted(spanning_edges):
             name_a, name_b = edge_id
             # r2 gets the 'door' symbol, so it swings into r2.
             # We want the door to swing into the higher ranked room.
@@ -148,9 +153,14 @@ class OpeningsPlacer:
         for rspec in plan.rooms:
             if not rspec.exterior_walls:
                 continue
-            best_walls = sorted(list(rspec.exterior_walls),
-                                key=lambda e: rspec.width if e in ['S', 'N'] else rspec.length,
-                                reverse=True)
+            wall_priority = {'S': 0, 'E': 1, 'N': 2, 'W': 3}
+            best_walls = sorted(
+                rspec.exterior_walls,
+                key=lambda e: (
+                    -(rspec.width if e in ['S', 'N'] else rspec.length),
+                    wall_priority[e],
+                ),
+            )
             main_ext = best_walls[0]
             wall_length = rspec.width if main_ext in ['S', 'N'] else rspec.length
             boneca = 0.20

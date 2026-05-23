@@ -138,6 +138,41 @@ class Bathroom(BaseRoom):
         )
 
 
+class BathroomSocial(BaseRoom):
+    """Banheiro social (meio-banheiro) — acessível pela área social.
+
+    Rules applied:
+      - Lighting: Lumen Method (NBR 8995) — 100 lux required
+      - General outlets: 1 waterproof outlet (IPX4) near the sink
+      - No electric shower (half-bath: sink + toilet only)
+    """
+
+    ROOM_TYPE = "bathroom_social"
+
+    def apply_nbr5410_rules(self) -> None:
+        self._apply_lighting()
+        self._apply_tugs()
+
+    def _apply_lighting(self) -> None:
+        result = lighting_calculator("bathroom", self.area, self.width, self.length)
+        wattage_each = int(result.total_power_w / result.fixture_count)
+        for i in range(result.fixture_count):
+            self.add_appliance(
+                Appliance(
+                    name=f"Luminária {i + 1}",
+                    wattage=wattage_each,
+                    type=ApplianceType.LIGHTING,
+                )
+            )
+
+    def _apply_tugs(self) -> None:
+        self.add_appliance(
+            Appliance(
+                name="TUG banheiro social (IPX4)", wattage=100, type=ApplianceType.GENERAL
+            )
+        )
+
+
 class Living(BaseRoom):
     """
     Rules applied:

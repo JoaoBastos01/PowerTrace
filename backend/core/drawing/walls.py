@@ -97,7 +97,11 @@ def draw_room_structure(msp, room: BaseRoom,
         if op.kind == 'door':
             p1, p2 = inner_walls[op.wall]
             ds = tw if op.wall == 'S' else (ts if op.wall == 'E' else (te if op.wall == 'N' else tn))
-            inner_op = Opening(wall=op.wall, offset=op.offset - ds, width=op.width, kind=op.kind, swing=op.swing)
+            # Clamp the offset so the door symbol always stays inside the inner wall
+            inner_wall_len = (w - tw - te) if op.wall in ('S', 'N') else (l - ts - tn)
+            raw_offset = op.offset - ds
+            clamped_offset = max(0.0, min(raw_offset, inner_wall_len - op.width))
+            inner_op = Opening(wall=op.wall, offset=clamped_offset, width=op.width, kind=op.kind, swing=op.swing)
             draw_door_symbol(msp, inner_op, p1, p2)
         elif op.kind == 'window':
             p1, p2, _ = outer_walls[op.wall]

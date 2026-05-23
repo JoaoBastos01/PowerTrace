@@ -81,7 +81,7 @@ class BSPTreeGenerator:
         return self._collect_leaves(root)
 
     def _partition_node(self, node: BSPNode, rooms: Dict[str, float], rng: random.Random) -> bool:
-        room_keys = list(rooms.keys())
+        room_keys = sorted(rooms.keys())
         if len(room_keys) == 1:
             node.room_type = room_keys[0]
             return True

@@ -26,7 +26,7 @@ class AdjacencyGraph:
         self._build_edges()
 
     def _build_edges(self):
-        room_names = list(self.rooms.keys())
+        room_names = sorted(self.rooms.keys())
         for i in range(len(room_names)):
             for j in range(i + 1, len(room_names)):
                 r1 = self.rooms[room_names[i]]
@@ -45,8 +45,15 @@ class AdjacencyGraph:
     def validate_architecture(self) -> bool:
         if not self._is_connected():
             return False
-        for room, adjacencies in self.edges.items():
-            if room.startswith("bathroom"):
+        for room in sorted(self.edges.keys()):
+            adjacencies = self.edges[room]
+            if room == "bathroom_social":
+                # Social bathroom must connect to social hubs only
+                allowed_hubs = {"living", "living_kitchen", "corridor"}
+                if not any(hub in adjacencies for hub in allowed_hubs):
+                    return False
+            elif room.startswith("bathroom"):
+                # Private bathrooms: connect to corridor or bedrooms
                 allowed_hubs = {"living", "living_kitchen", "corridor"} | {k for k in self.edges if k.startswith("bedroom")}
                 if not any(hub in adjacencies for hub in allowed_hubs):
                     return False
@@ -66,7 +73,7 @@ class AdjacencyGraph:
 
     def _is_connected(self) -> bool:
         if not self.rooms: return True
-        start = list(self.rooms.keys())[0]
+        start = min(self.rooms.keys())
         visited = set()
         queue = [start]
         while queue:

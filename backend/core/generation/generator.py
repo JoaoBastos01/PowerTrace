@@ -71,11 +71,15 @@ class FloorPlanGenerator:
             # ── Sucesso! Construir o FloorPlan ────────────────────
             graph = AdjacencyGraph(leaves)
 
+            # Ordena as salas de forma determinística por coordenada
+            # para garantir reprodutibilidade mesmo com hash randomization.
+            sorted_rooms = sorted(graph.rooms.values(), key=lambda r: (r.y, r.x))
+
             plan = FloorPlan(
                 seed=self.ctx.master_seed,
                 total_width=self.width,
                 total_length=self.length,
-                rooms=list(graph.rooms.values()),
+                rooms=sorted_rooms,
             )
 
             taxa_falha = (attempt / max_attempts) * 100

@@ -5,7 +5,7 @@ from typing import List
 
 from .appliances import Appliance, ApplianceType
 
-_VALID_ROOM_TYPES = {"kitchen", "bedroom", "living", "living_kitchen", "bathroom", "corridor", "garage"}
+_VALID_ROOM_TYPES = {"kitchen", "bedroom", "living", "living_kitchen", "bathroom", "bathroom_social", "corridor", "garage"}
 
 
 class BaseRoom(ABC):

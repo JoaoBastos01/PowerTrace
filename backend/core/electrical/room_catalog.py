@@ -7,23 +7,24 @@ domínio elétrico — é ela que faz a ponte entre a geometria pura
 """
 
 from models.floor_plan import RoomSpec
-from .rooms import Kitchen, Bedroom, Bathroom, Living, Corridor, Garage, LivingKitchen
+from .rooms import Kitchen, Bedroom, Bathroom, BathroomSocial, Living, Corridor, Garage, LivingKitchen
 from .base import BaseRoom
 
 # Mapeamento de room_type → classe BaseRoom concreta.
 # Tipos com sufixo numérico (bedroom_1, bathroom_2, …) são tratados
 # pelo prefixo via room_spec_to_base_room().
 ROOM_CLASS_MAP = {
-    "kitchen":       Kitchen,
-    "bedroom_1":     Bedroom,
-    "bedroom_2":     Bedroom,
-    "bedroom_3":     Bedroom,
-    "bathroom_1":    Bathroom,
-    "bathroom_2":    Bathroom,
-    "living":        Living,
-    "corridor":      Corridor,
-    "garage":        Garage,
-    "living_kitchen": LivingKitchen,
+    "kitchen":          Kitchen,
+    "bedroom_1":        Bedroom,
+    "bedroom_2":        Bedroom,
+    "bedroom_3":        Bedroom,
+    "bathroom_1":       Bathroom,
+    "bathroom_2":       Bathroom,
+    "bathroom_social":  BathroomSocial,
+    "living":           Living,
+    "corridor":         Corridor,
+    "garage":           Garage,
+    "living_kitchen":   LivingKitchen,
 }
 
 

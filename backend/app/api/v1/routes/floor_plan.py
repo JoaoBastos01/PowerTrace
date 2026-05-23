@@ -55,7 +55,7 @@ def generate_floor_plan(request: GenerateRequest) -> FloorPlanResponse:
             length=room_spec.length,
             area=round(room_spec.area, 2),
             total_wattage=room_obj.get_total_wattage(),
-            exterior_walls=list(room_spec.exterior_walls),
+            exterior_walls=sorted(room_spec.exterior_walls),
         ))
 
     dxf_filename = f"plan_s{request.seed}_w{request.width}_l{request.length}.dxf"

@@ -22,7 +22,12 @@ class DXFGenerator:
     """Gerador de arquivos DXF para plantas baixas elétricas (NBR 5410)."""
 
     def __init__(self):
-        self.doc = ezdxf.new(setup=True)
+        previous_fixed_metadata = ezdxf.options.write_fixed_meta_data_for_testing
+        ezdxf.options.write_fixed_meta_data_for_testing = True
+        try:
+            self.doc = ezdxf.new(setup=True)
+        finally:
+            ezdxf.options.write_fixed_meta_data_for_testing = previous_fixed_metadata
         self.msp = self.doc.modelspace()
         setup_layers(self.doc)
 
@@ -58,6 +63,14 @@ class DXFGenerator:
         """
         os.makedirs(settings.output_dir, exist_ok=True)
         path = os.path.join(settings.output_dir, filename)
-        self.doc.saveas(path)
+        previous_fixed_metadata = ezdxf.options.write_fixed_meta_data_for_testing
+        original_dxf_types_in_use = self.doc.entitydb.dxf_types_in_use
+        ezdxf.options.write_fixed_meta_data_for_testing = True
+        self.doc.entitydb.dxf_types_in_use = lambda: sorted(original_dxf_types_in_use())
+        try:
+            self.doc.saveas(path)
+        finally:
+            self.doc.entitydb.dxf_types_in_use = original_dxf_types_in_use
+            ezdxf.options.write_fixed_meta_data_for_testing = previous_fixed_metadata
         print(f"DXF file saved as '{path}'")
         return path
