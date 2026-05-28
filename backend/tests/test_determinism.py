@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from core.drawing.engine import DXFGenerator
 from core.electrical.room_catalog import room_spec_to_base_room
@@ -59,6 +60,8 @@ print(json.dumps(signature, sort_keys=True))
 def _signature_with_hash_seed(hash_seed: int) -> dict:
     env = os.environ.copy()
     env["PYTHONHASHSEED"] = str(hash_seed)
+    backend_root = Path(__file__).resolve().parents[1]
+    env["PYTHONPATH"] = str(backend_root)
     result = subprocess.run(
         [sys.executable, "-c", PLAN_SIGNATURE_SCRIPT],
         check=True,

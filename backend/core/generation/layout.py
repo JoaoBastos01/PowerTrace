@@ -5,7 +5,26 @@ from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
 
 from .bsp import BSPNode
-from .program import HouseProgram
+from .program import HouseProgram, ROOM_CATALOG
+
+
+DEFAULT_MAX_ASPECT = 3.5
+ROOM_MAX_ASPECT = {
+    # A 1.20 m wide bathroom is acceptable only while it remains compact.
+    # Wider bathrooms can still be longer, but avoid BSP "noodles" in small plans.
+    "bathroom": 3.5,
+    "bathroom_social": 3.5,
+}
+
+
+def _max_aspect_for(room_type: str) -> float:
+    if room_type.startswith("bathroom"):
+        return ROOM_MAX_ASPECT["bathroom"]
+    return ROOM_MAX_ASPECT.get(room_type, DEFAULT_MAX_ASPECT)
+
+
+def _aspect(width: float, length: float) -> float:
+    return max(width, length) / min(width, length)
 
 
 class TopologyBSP:
@@ -53,41 +72,9 @@ class TopologyBSP:
         # Add slight randomness
         ratio += rng.uniform(-0.05, 0.05)
 
-        # Dynamic physical clamping based on min_dimension
-        from .program import ROOM_CATALOG
-
-        min_dim_left = max(ROOM_CATALOG[r].min_dimension for r in left) if left else 1.0
-        min_dim_right = (
-            max(ROOM_CATALOG[r].min_dimension for r in right) if right else 1.0
-        )
-
-        # Choose cut axis to minimize extreme aspect ratios
-        horizontal = True
-        if node.width > 0 and node.length > 0:
-            # If we cut horizontally, the new dimensions for left are: width x (length * ratio)
-            # If we cut vertically, the new dimensions for left are: (width * ratio) x length
-            aspect_horiz = max(node.width, node.length * ratio) / min(node.width, node.length * ratio)
-            aspect_vert = max(node.width * ratio, node.length) / min(node.width * ratio, node.length)
-            
-            if aspect_vert < aspect_horiz:
-                horizontal = False
-            
-            # Add some randomness if aspect ratios are similar to maintain procedural variety
-            if abs(aspect_horiz - aspect_vert) < 1.0 and rng.random() < 0.3:
-                horizontal = not horizontal
-
-        # The dimension being cut
-        cut_dim = node.length if horizontal else node.width
-
-        # Min ratio to satisfy min_dimension
-        min_ratio = min_dim_left / cut_dim
-        max_ratio = 1.0 - (min_dim_right / cut_dim)
-
-        # If the space is too small to even satisfy the absolute minimums, the partition will fail.
-        if min_ratio > max_ratio:
+        horizontal, ratio = self._choose_split_axis(node, left, right, ratio, rng)
+        if horizontal is None:
             return False
-
-        ratio = max(min_ratio, min(max_ratio, ratio))
 
         if not node.split(ratio, horizontal, rng):
             if not node.split(ratio, not horizontal, rng):
@@ -95,6 +82,68 @@ class TopologyBSP:
         return self._partition(node.left, left, rng) and self._partition(
             node.right, right, rng
         )
+
+    def _choose_split_axis(
+        self,
+        node: BSPNode,
+        left: List[str],
+        right: List[str],
+        ratio: float,
+        rng: random.Random,
+    ) -> Tuple[Optional[bool], float]:
+        candidates = []
+        for horizontal in (True, False):
+            cut_dim = node.length if horizontal else node.width
+            if cut_dim <= 0:
+                continue
+
+            min_dim_left = max(ROOM_CATALOG[r].min_dimension for r in left) if left else 1.0
+            min_dim_right = max(ROOM_CATALOG[r].min_dimension for r in right) if right else 1.0
+            min_ratio = min_dim_left / cut_dim
+            max_ratio = 1.0 - (min_dim_right / cut_dim)
+            if min_ratio > max_ratio:
+                continue
+
+            clamped = max(min_ratio, min(max_ratio, ratio))
+            left_w, left_l, right_w, right_l = self._split_dimensions(node, clamped, horizontal)
+            if not self._terminal_rooms_fit(left, left_w, left_l):
+                continue
+            if not self._terminal_rooms_fit(right, right_w, right_l):
+                continue
+
+            worst_aspect = max(_aspect(left_w, left_l), _aspect(right_w, right_l))
+            clamp_penalty = abs(clamped - ratio)
+            candidates.append((worst_aspect, clamp_penalty, horizontal, clamped))
+
+        if not candidates:
+            return None, ratio
+
+        candidates.sort(key=lambda item: (item[0], item[1], not item[2]))
+        best_aspect, _, horizontal, clamped = candidates[0]
+
+        # Preserve the previous procedural variety when both axes are comparably good.
+        if len(candidates) > 1 and abs(best_aspect - candidates[1][0]) < 1.0 and rng.random() < 0.3:
+            _, _, horizontal, clamped = candidates[1]
+
+        return horizontal, clamped
+
+    def _split_dimensions(
+        self, node: BSPNode, ratio: float, horizontal: bool
+    ) -> Tuple[float, float, float, float]:
+        if horizontal:
+            left_l = node.length * ratio
+            return node.width, left_l, node.width, node.length - left_l
+        left_w = node.width * ratio
+        return left_w, node.length, node.width - left_w, node.length
+
+    def _terminal_rooms_fit(self, rooms: List[str], width: float, length: float) -> bool:
+        if len(rooms) != 1:
+            return True
+        room_type = rooms[0]
+        config = ROOM_CATALOG[room_type]
+        if min(width, length) < config.min_dimension:
+            return False
+        return _aspect(width, length) <= _max_aspect_for(room_type)
 
     def _split_by_area(
         self, rooms: List[str], rng: random.Random
@@ -206,11 +255,11 @@ def validate_topology(leaves: List[BSPNode], program: HouseProgram) -> bool:
     for node in leaves:
         if node.room_type == 'corridor':
             continue
-        aspect = max(node.width, node.length) / min(node.width, node.length)
+        config = ROOM_CATALOG.get(node.room_type)
+        if config and min(node.width, node.length) < config.min_dimension:
+            return False
 
-        # Bathrooms can be somewhat long (e.g. 1.2 x 5.0 = 4.16), especially in BSP layouts
-        max_aspect = 4.5 if node.room_type.startswith('bathroom') else 3.5
-        if aspect > max_aspect:
+        if _aspect(node.width, node.length) > _max_aspect_for(node.room_type):
             return False
 
     return True
