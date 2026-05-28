@@ -3,7 +3,7 @@
     "stgen-dxf-viewer": {
       "command": "node",
       "args": [
-        "c:\\Users\\jvtbs\\.antigravity\\extensions\\jeil-structuralengineering-consultants.stgen-0.2.2-universal\\media\\mcp-server.js"
+        "c:\\Users\\jvtbs\\.vscode\\extensions\\jeil-structuralengineering-consultants.stgen-0.2.2\\media\\mcp-server.js"
       ],
       "env": {
         "STGEN_MCP_PORT": "52789"

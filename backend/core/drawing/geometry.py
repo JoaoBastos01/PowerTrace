@@ -6,6 +6,14 @@ import math
 from typing import List, Tuple
 
 
+def __getattr__(name: str):
+    if name == "DXFGenerator":
+        from .engine import DXFGenerator
+
+        return DXFGenerator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 def wall_unit_vector(p1: tuple, p2: tuple) -> tuple:
     """Retorna o vetor unitário e o comprimento de um segmento de parede.
 
