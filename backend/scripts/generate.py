@@ -1,9 +1,4 @@
-"""Script CLI para geração de planta baixa completa em DXF.
 
-Uso:
-    python scripts/generate.py --seed 42 --width 8.0 --length 12.0
-    python scripts/generate.py --seed 7 --width 10.0 --length 15.0 --output grande.dxf
-"""
 
 import sys
 import argparse
