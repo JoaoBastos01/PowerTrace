@@ -22,6 +22,61 @@ def _draw_lighting_symbol(msp, cx: float, cy: float, r: float = 0.05) -> None:
     )
 
 
+def _lighting_grid_dimensions(
+    count: int,
+    width: float,
+    length: float,
+    linear_aspect_threshold: float = 3.0,
+) -> tuple[int, int]:
+    """Return columns and rows for a balanced residential lighting grid."""
+    short_side = min(width, length)
+    long_side = max(width, length)
+    if count > 1 and short_side > 0:
+        aspect_ratio = long_side / short_side
+        if aspect_ratio >= linear_aspect_threshold:
+            if width >= length:
+                return count, 1
+            return 1, count
+
+    cols = max(1, math.ceil(math.sqrt(count)))
+    rows = math.ceil(count / cols)
+
+    # Keep two-light layouts aligned with the room's dominant direction.
+    if count == 2 and length > width:
+        return rows, cols
+    return cols, rows
+
+
+def _lighting_positions(
+    origin: tuple,
+    width: float,
+    length: float,
+    count: int,
+    wall_thickness: float = 0.15,
+) -> list[tuple[float, float]]:
+    t = wall_thickness
+    x0 = origin[0] + t
+    y0 = origin[1] + t
+    int_w = width - 2 * t
+    int_l = length - 2 * t
+
+    if count <= 0 or int_w <= 0 or int_l <= 0:
+        return []
+
+    cols, rows = _lighting_grid_dimensions(count, int_w, int_l)
+    ex = int_w / cols
+    ey = int_l / rows
+    positions = []
+    for row in range(rows):
+        for col in range(cols):
+            if len(positions) >= count:
+                return positions
+            cx = x0 + ex / 2 + col * ex
+            cy = y0 + ey / 2 + row * ey
+            positions.append((cx, cy))
+    return positions
+
+
 def draw_lighting(msp, room: BaseRoom, wall_thickness: float = 0.15) -> None:
     """Distributes lighting points along the room.
 
@@ -33,30 +88,14 @@ def draw_lighting(msp, room: BaseRoom, wall_thickness: float = 0.15) -> None:
     if not lights:
         return
 
-    # Work with the interior bounds (subtract wall thickness)
-    t = wall_thickness
-    x0 = room.origin[0] + t
-    y0 = room.origin[1] + t
-    int_w = room.width - 2 * t
-    int_l = room.length - 2 * t
-
-    if int_w <= 0 or int_l <= 0:
-        return
-
-    n = len(lights)
-    # Grid: cols = ceil(sqrt(n)), rows = ceil(n / cols)
-    cols = max(1, math.ceil(math.sqrt(n * int_w / int_l)))
-    rows = math.ceil(n / cols)
-    ex = int_w / cols      # spacing in X between luminaires
-    ey = int_l / rows      # spacing in Y between luminaires
-    idx = 0
-    for row in range(rows):
-        for col in range(cols):
-            if idx >= n:        # grid can have more cells than luminaires
-                break
-            cx = x0 + ex / 2 + col * ex
-            cy = y0 + ey / 2 + row * ey
-            _draw_lighting_symbol(msp, cx, cy)
-            watt_text = f"{lights[idx].wattage}W"
-            msp.add_text(watt_text, dxfattribs={"height": 0.1, "layer": "PT_TEXT"}).set_placement((cx + 0.1, cy + 0.1))
-            idx += 1
+    positions = _lighting_positions(
+        room.origin,
+        room.width,
+        room.length,
+        len(lights),
+        wall_thickness,
+    )
+    for idx, (cx, cy) in enumerate(positions):
+        _draw_lighting_symbol(msp, cx, cy)
+        watt_text = f"{lights[idx].wattage}W"
+        msp.add_text(watt_text, dxfattribs={"height": 0.1, "layer": "PT_TEXT"}).set_placement((cx + 0.1, cy + 0.1))
