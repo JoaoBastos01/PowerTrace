@@ -73,3 +73,25 @@ def test_door_collision_resolution_is_deterministic():
     ]
 
     assert signatures == [signatures[0]] * len(signatures)
+
+
+def test_living_main_door_does_not_overlap_window():
+    living = RoomSpec(
+        "living",
+        x=0.0,
+        y=0.0,
+        width=2.2,
+        length=3.0,
+        exterior_walls=frozenset({"S"}),
+    )
+    plan = FloorPlan(seed=1, total_width=2.2, total_length=3.0, rooms=[living])
+    graph = SimpleGraph({"living": living}.values(), {"living": set()})
+
+    openings = OpeningsPlacer.generate_openings(plan, graph)
+    door = next(opening for opening in openings["living"] if opening.kind == "door")
+    window = next(opening for opening in openings["living"] if opening.kind == "window")
+
+    door_footprint = OpeningsPlacer._door_footprint(living, door)
+    window_footprint = OpeningsPlacer._window_footprint(living, window)
+
+    assert OpeningsPlacer._overlap_area(door_footprint, window_footprint) == 0.0

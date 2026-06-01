@@ -12,6 +12,7 @@ class OpeningsPlacer:
 
     DOOR_CANDIDATE_STEP = 0.20
     DOOR_CLEARANCE = 0.05
+    WINDOW_MIN_WIDTH = 0.40
 
     @staticmethod
     def _get_edge_cost(r1: str, r2: str) -> int:
@@ -164,6 +165,36 @@ class OpeningsPlacer:
         )
 
     @staticmethod
+    def _window_footprint(room, opening: Opening) -> Tuple[float, float, float, float]:
+        wall_start, wall_end = OpeningsPlacer._wall_points(room, opening.wall)
+        dx = wall_end[0] - wall_start[0]
+        dy = wall_end[1] - wall_start[1]
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return (wall_start[0], wall_start[1], wall_start[0], wall_start[1])
+
+        ux, uy = dx / length, dy / length
+        in_x, in_y = -uy, ux
+        p_start = (
+            wall_start[0] + ux * opening.offset,
+            wall_start[1] + uy * opening.offset,
+        )
+        p_end = (
+            wall_start[0] + ux * (opening.offset + opening.width),
+            wall_start[1] + uy * (opening.offset + opening.width),
+        )
+        depth = 0.15
+        xs = [p_start[0], p_end[0], p_start[0] + in_x * depth, p_end[0] + in_x * depth]
+        ys = [p_start[1], p_end[1], p_start[1] + in_y * depth, p_end[1] + in_y * depth]
+        clearance = OpeningsPlacer.DOOR_CLEARANCE
+        return (
+            min(xs) - clearance,
+            min(ys) - clearance,
+            max(xs) + clearance,
+            max(ys) + clearance,
+        )
+
+    @staticmethod
     def _overlap_area(
         first: Tuple[float, float, float, float],
         second: Tuple[float, float, float, float],
@@ -221,6 +252,74 @@ class OpeningsPlacer:
                     best_footprint = footprint
 
         return best_opening, best_footprint
+
+    @staticmethod
+    def _resolve_window_opening(
+        room,
+        wall: str,
+        preferred_offset: float,
+        width: float,
+        occupied_footprints: List[Tuple[float, float, float, float]],
+        minimum_offset: float,
+        maximum_offset: float,
+    ) -> Opening | None:
+        if maximum_offset < minimum_offset or width < OpeningsPlacer.WINDOW_MIN_WIDTH:
+            return None
+
+        best_score = None
+        best_opening = None
+        for offset_index, offset in enumerate(
+            OpeningsPlacer._offset_candidates(preferred_offset, minimum_offset, maximum_offset)
+        ):
+            opening = Opening(wall=wall, offset=offset, width=width, kind='window')
+            footprint = OpeningsPlacer._window_footprint(room, opening)
+            overlap_areas = [
+                OpeningsPlacer._overlap_area(footprint, occupied)
+                for occupied in occupied_footprints
+            ]
+            collision_count = sum(1 for area in overlap_areas if area > 0)
+            total_overlap = round(sum(overlap_areas), 10)
+            score = (
+                collision_count,
+                total_overlap,
+                round(abs(offset - preferred_offset), 8),
+                offset_index,
+                round(offset, 8),
+            )
+            if best_score is None or score < best_score:
+                best_score = score
+                best_opening = opening
+
+        if best_score and best_score[0] == 0:
+            return best_opening
+        return None
+
+    @staticmethod
+    def _resolve_exterior_window(
+        room,
+        wall: str,
+        preferred_offset: float,
+        preferred_width: float,
+        occupied_footprints: List[Tuple[float, float, float, float]],
+        min_margin: float,
+    ) -> Opening | None:
+        wall_length = room.width if wall in ['S', 'N'] else room.length
+        width = min(preferred_width, wall_length - 2 * min_margin)
+        while width >= OpeningsPlacer.WINDOW_MIN_WIDTH:
+            maximum_offset = wall_length - width - min_margin
+            opening = OpeningsPlacer._resolve_window_opening(
+                room,
+                wall,
+                preferred_offset,
+                width,
+                occupied_footprints,
+                min_margin,
+                maximum_offset,
+            )
+            if opening:
+                return opening
+            width = round(width - 0.20, 8)
+        return None
 
     @staticmethod
     def _add_internal_door_pair(
@@ -415,8 +514,16 @@ class OpeningsPlacer:
                 win_off = (wall_length / 2) - (win_w / 2)
                 if win_off < (boneca + main_w + 0.3):
                     win_off = wall_length - win_w - 0.2
-                if win_off > 0 and (win_off + win_w) < wall_length:
-                    openings_dict[rspec.room_type].append(Opening(wall=main_ext, offset=win_off, width=win_w, kind='window'))
+                window = OpeningsPlacer._resolve_exterior_window(
+                    rspec,
+                    main_ext,
+                    win_off,
+                    win_w,
+                    occupied_doors[rspec.room_type],
+                    boneca,
+                )
+                if window:
+                    openings_dict[rspec.room_type].append(window)
             elif rspec.room_type == 'garage':
                 door_w = 2.5
                 if wall_length >= door_w + 0.4:
@@ -432,8 +539,17 @@ class OpeningsPlacer:
                 if wall_length < win_w + 2 * min_margin:
                     win_w = wall_length - 2 * min_margin
                 
-                if win_w >= 0.40:  # Minimum acceptable window size
+                if win_w >= OpeningsPlacer.WINDOW_MIN_WIDTH:
                     win_off = (wall_length / 2) - (win_w / 2)
-                    openings_dict[rspec.room_type].append(Opening(wall=main_ext, offset=win_off, width=win_w, kind='window'))
+                    window = OpeningsPlacer._resolve_exterior_window(
+                        rspec,
+                        main_ext,
+                        win_off,
+                        win_w,
+                        occupied_doors[rspec.room_type],
+                        min_margin,
+                    )
+                    if window:
+                        openings_dict[rspec.room_type].append(window)
 
         return openings_dict
