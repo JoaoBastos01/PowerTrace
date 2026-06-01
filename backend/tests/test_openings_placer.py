@@ -1,4 +1,6 @@
 from models.floor_plan import FloorPlan, RoomSpec
+from core.drawing.openings import Opening
+from core.generation.openings_geometry import overlap_area, window_footprint
 from core.generation.openings_placer import OpeningsPlacer
 
 
@@ -95,3 +97,13 @@ def test_living_main_door_does_not_overlap_window():
     window_footprint = OpeningsPlacer._window_footprint(living, window)
 
     assert OpeningsPlacer._overlap_area(door_footprint, window_footprint) == 0.0
+
+
+def test_window_footprint_overlap_math():
+    room = RoomSpec("living", x=0.0, y=0.0, width=3.0, length=3.0)
+    first = window_footprint(room, Opening('S', 0.20, 0.80, kind='window'), clearance=0.05)
+    overlapping = window_footprint(room, Opening('S', 0.90, 0.80, kind='window'), clearance=0.05)
+    separate = window_footprint(room, Opening('S', 1.20, 0.80, kind='window'), clearance=0.05)
+
+    assert overlap_area(first, overlapping) > 0.0
+    assert overlap_area(first, separate) == 0.0
