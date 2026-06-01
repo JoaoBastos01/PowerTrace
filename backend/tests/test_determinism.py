@@ -19,7 +19,7 @@ from core.generation.openings_placer import OpeningsPlacer
 plan, graph, program = FloorPlanGenerator(master_seed=42, width=8.0, length=12.0).generate(
     max_attempts=300
 )
-openings = OpeningsPlacer.generate_openings(plan, graph)
+openings = OpeningsPlacer.generate_openings(plan, graph, program)
 
 signature = {
     "program": {
@@ -79,10 +79,10 @@ def test_generation_signature_is_stable_across_hash_seeds():
 
 
 def _generate_dxf(output_file: str) -> bytes:
-    plan, graph, _ = FloorPlanGenerator(master_seed=42, width=8.0, length=12.0).generate(
+    plan, graph, program = FloorPlanGenerator(master_seed=42, width=8.0, length=12.0).generate(
         max_attempts=300
     )
-    openings = OpeningsPlacer.generate_openings(plan, graph)
+    openings = OpeningsPlacer.generate_openings(plan, graph, program)
     generator = DXFGenerator()
 
     for room_spec in plan.rooms:

@@ -7,6 +7,7 @@ from app.schemas.floor_plan import GenerateRequest, FloorPlanResponse, RoomRespo
 from app.config import settings
 from core.generation.generator import FloorPlanGenerator
 from core.generation.openings_placer import OpeningsPlacer
+from core.generation.room_roles import resolve_room_presentation
 from core.drawing.engine import DXFGenerator
 from core.electrical.room_catalog import room_spec_to_base_room
 
@@ -32,13 +33,14 @@ def generate_floor_plan(request: GenerateRequest) -> FloorPlanResponse:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
-    openings_dict = OpeningsPlacer.generate_openings(plan, graph)
+    openings_dict = OpeningsPlacer.generate_openings(plan, graph, program)
 
     generator = DXFGenerator()
     rooms_response = []
 
     for room_spec in plan.rooms:
-        room_obj = room_spec_to_base_room(room_spec)
+        presentation = resolve_room_presentation(room_spec.room_type, program.category)
+        room_obj = room_spec_to_base_room(room_spec, presentation.display_name)
         room_obj.apply_nbr5410_rules()
 
         room_openings = openings_dict.get(room_spec.room_type, [])
@@ -48,6 +50,7 @@ def generate_floor_plan(request: GenerateRequest) -> FloorPlanResponse:
 
         rooms_response.append(RoomResponse(
             room_type=room_spec.room_type,
+            room_role=presentation.room_role,
             name=room_obj.name,
             x=room_spec.x,
             y=room_spec.y,

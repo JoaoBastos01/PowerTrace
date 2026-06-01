@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 from models.floor_plan import FloorPlan
 from core.drawing.openings import Opening
 from core.generation.adjacency import AdjacencyGraph
+from core.generation.access_policy import build_access_edges, connection_cost
 from core.generation.openings_geometry import (
     Rect,
     absolute_start_from_opening,
@@ -32,44 +33,9 @@ class OpeningsPlacer:
     WINDOW_MIN_WIDTH = 0.40
 
     @staticmethod
-    def _get_edge_cost(r1: str, r2: str) -> int:
-        """Determina o custo arquitetônico de conectar dois cômodos."""
-        def base(name):
-            if name.startswith('bedroom'): return 'bedroom'
-            if name == 'bathroom_social': return 'bathroom_social'
-            if name.startswith('bathroom'): return 'bathroom'
-            return name
-        
-        pair = frozenset([base(r1), base(r2)])
-        costs = {
-            frozenset(['corridor', 'bedroom']): 1,
-            frozenset(['corridor', 'bathroom']): 1,
-            frozenset(['corridor', 'living']): 1,
-            frozenset(['living', 'kitchen']): 1,
-            frozenset(['living', 'bathroom_social']): 1,   # Social bathroom off living
-            frozenset(['living_kitchen', 'bedroom']): 1,
-            frozenset(['living_kitchen', 'bathroom']): 1,
-            frozenset(['living_kitchen', 'bathroom_social']): 1,
-            frozenset(['bedroom', 'bathroom']): 2,   # Suite
-            frozenset(['living', 'bedroom']): 5,     # Acesso direto pela sala
-            frozenset(['kitchen', 'corridor']): 10,  
-            frozenset(['living', 'bathroom']): 20,
-            frozenset(['kitchen', 'bedroom']): 50,
-            frozenset(['bedroom', 'bedroom']): 50,   # Quarto "passa-prato"
-            frozenset(['kitchen', 'bathroom']): 100, # Péssimo
-            frozenset(['bathroom', 'bathroom']): 100,
-            frozenset(['bedroom', 'bathroom_social']): 200,  # Never — social banheiro off bedroom
-            frozenset(['bathroom_social', 'bathroom']): 200, # Never
-            
-            # Garage logic
-            frozenset(['garage', 'living']): 1,
-            frozenset(['garage', 'kitchen']): 5,
-            frozenset(['garage', 'corridor']): 10,
-            frozenset(['garage', 'bedroom']): 200,   # Never
-            frozenset(['garage', 'bathroom']): 200,  # Never
-            frozenset(['garage', 'bathroom_social']): 200,  # Never
-        }
-        return costs.get(pair, 200)
+    def _get_edge_cost(r1: str, r2: str, category: str | None = None) -> int:
+        """Determina o custo arquitetonico de conectar dois comodos."""
+        return connection_cost(r1, r2, category)
 
     @staticmethod
     def _wall_points(room, wall: str) -> Tuple[tuple, tuple]:
@@ -236,12 +202,18 @@ class OpeningsPlacer:
         occupied_footprints[door_room.room_type].append(footprint)
 
     @staticmethod
-    def generate_openings(plan: FloorPlan, graph: AdjacencyGraph) -> Dict[str, List[Opening]]:
+    def generate_openings(plan: FloorPlan, graph: AdjacencyGraph, program=None) -> Dict[str, List[Opening]]:
         """Gera o dicionário injetável de Openings para o DXFGenerator."""
         openings_dict: Dict[str, List[Opening]] = {rspec.room_type: [] for rspec in plan.rooms}
         occupied_footprints: Dict[str, List[Rect]] = {
             rspec.room_type: [] for rspec in plan.rooms
         }
+        category = getattr(program, "category", None)
+        access_edges = (
+            build_access_edges(graph.edges, program.topology_edges, category)
+            if program is not None
+            else graph.edges
+        )
         # Build MST (Prim's algorithm) to guarantee access with minimum architectural cost
         root_room = 'living' if any(r.room_type == 'living' for r in plan.rooms) else 'living_kitchen'
         if not any(r.room_type == root_room for r in plan.rooms):
@@ -252,8 +224,8 @@ class OpeningsPlacer:
         import heapq
         
         edges_pq = []
-        for neighbor in sorted(graph.edges[root_room]):
-            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(root_room, neighbor), root_room, neighbor))
+        for neighbor in sorted(access_edges[root_room]):
+            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(root_room, neighbor, category), root_room, neighbor))
             
         while edges_pq:
             cost, u, v = heapq.heappop(edges_pq)
@@ -263,9 +235,9 @@ class OpeningsPlacer:
                 
                 # Prevent bathrooms and garages from acting as corridors/pass-throughs
                 if not v.startswith('bathroom') and not v.startswith('garage') and v != 'bathroom_social':
-                    for neighbor in sorted(graph.edges[v]):
+                    for neighbor in sorted(access_edges[v]):
                         if neighbor not in visited:
-                            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(v, neighbor), v, neighbor))
+                            heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(v, neighbor, category), v, neighbor))
 
         def get_rank(name):
             if name.startswith('living'): return 0

@@ -54,7 +54,7 @@ def generate_and_draw():
 
     # ── Fase 3: Aberturas ────────────────────────────────────────
     print("\n--- Fase 3: Calculando Portas e Janelas ---")
-    openings_dict = OpeningsPlacer.generate_openings(plan, graph)
+    openings_dict = OpeningsPlacer.generate_openings(plan, graph, program)
 
     # ── Desenho DXF ──────────────────────────────────────────────
     print("\n--- Fase 4: Gerando DXF ---")

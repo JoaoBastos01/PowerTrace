@@ -28,7 +28,7 @@ ROOM_CLASS_MAP = {
 }
 
 
-def room_spec_to_base_room(room_spec: RoomSpec) -> BaseRoom:
+def room_spec_to_base_room(room_spec: RoomSpec, display_name: str | None = None) -> BaseRoom:
     """Converte um RoomSpec gerado pelo BSP em uma instância concreta de BaseRoom.
 
     Parâmetros:
@@ -46,7 +46,7 @@ def room_spec_to_base_room(room_spec: RoomSpec) -> BaseRoom:
         raise ValueError(f"Tipo de cômodo desconhecido: {room_spec.room_type}")
 
     room_obj = room_class(
-        name=room_spec.room_type.replace("_", " ").title(),
+        name=display_name or room_spec.room_type.replace("_", " ").title(),
         width=room_spec.width,
         length=room_spec.length,
         origin=room_spec.origin,

@@ -16,6 +16,7 @@ class RoomResponse(BaseModel):
     """Dados de um cômodo gerado."""
 
     room_type: str
+    room_role: str
     name: str
     x: float
     y: float

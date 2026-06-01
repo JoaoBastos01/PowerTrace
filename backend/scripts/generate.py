@@ -7,6 +7,7 @@ import logging
 from app.config import settings
 from core.generation.generator import FloorPlanGenerator
 from core.generation.openings_placer import OpeningsPlacer
+from core.generation.room_roles import resolve_room_presentation
 from core.drawing.engine import DXFGenerator
 from core.electrical.room_catalog import room_spec_to_base_room
 
@@ -34,13 +35,14 @@ def generate_full_plan(seed: int, width: float, length: float, output_file: str)
     print(f"Cômodos gerados: {len(plan.rooms)}")
 
     # 2. Posicionamento de Aberturas (Portas e Janelas)
-    openings_dict = OpeningsPlacer.generate_openings(plan, graph)
+    openings_dict = OpeningsPlacer.generate_openings(plan, graph, program)
 
     # 3. Desenho do DXF
     generator = DXFGenerator()
 
     for room_spec in plan.rooms:
-        room_obj = room_spec_to_base_room(room_spec)
+        presentation = resolve_room_presentation(room_spec.room_type, program.category)
+        room_obj = room_spec_to_base_room(room_spec, presentation.display_name)
         room_obj.apply_nbr5410_rules()
 
         room_openings = openings_dict.get(room_spec.room_type, [])

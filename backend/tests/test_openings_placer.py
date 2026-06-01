@@ -2,6 +2,7 @@ from models.floor_plan import FloorPlan, RoomSpec
 from core.drawing.openings import Opening
 from core.generation.openings_geometry import overlap_area, window_footprint
 from core.generation.openings_placer import OpeningsPlacer
+from core.generation.program import HouseProgram
 
 
 class SimpleGraph:
@@ -107,3 +108,107 @@ def test_window_footprint_overlap_math():
 
     assert overlap_area(first, overlapping) > 0.0
     assert overlap_area(first, separate) == 0.0
+
+
+def test_primary_bathroom_prefers_social_access_over_bedroom_access():
+    living = RoomSpec("living", x=0.0, y=0.0, width=2.0, length=2.0)
+    bathroom = RoomSpec("bathroom_1", x=2.0, y=0.0, width=2.0, length=1.2)
+    bedroom = RoomSpec("bedroom_1", x=2.0, y=1.2, width=2.0, length=2.0)
+    rooms = [living, bathroom, bedroom]
+    plan = FloorPlan(seed=1, total_width=4.0, total_length=3.2, rooms=rooms)
+    graph = SimpleGraph(
+        rooms,
+        {
+            "living": {"bathroom_1", "bedroom_1"},
+            "bathroom_1": {"living", "bedroom_1"},
+            "bedroom_1": {"living", "bathroom_1"},
+        },
+    )
+    program = HouseProgram(
+        category="small",
+        rooms={"living": 8.0, "bathroom_1": 3.0, "bedroom_1": 8.0},
+        topology={
+            "living": ["bathroom_1", "bedroom_1"],
+            "bathroom_1": ["living"],
+            "bedroom_1": ["living"],
+        },
+    )
+
+    openings = OpeningsPlacer.generate_openings(plan, graph, program)
+
+    bathroom_doors = [
+        opening for opening in openings["bathroom_1"] if opening.kind == "door"
+    ]
+    bedroom_gaps = [
+        opening for opening in openings["bedroom_1"] if opening.kind == "gap"
+    ]
+
+    assert [(opening.wall, opening.kind) for opening in bathroom_doors] == [("W", "door")]
+    assert bedroom_gaps == []
+
+
+def test_suite_bathroom_keeps_bedroom_access():
+    bedroom = RoomSpec("bedroom_1", x=0.0, y=0.0, width=2.0, length=2.0)
+    bathroom = RoomSpec("bathroom_2", x=2.0, y=0.0, width=1.5, length=2.0)
+    rooms = [bedroom, bathroom]
+    plan = FloorPlan(seed=1, total_width=3.5, total_length=2.0, rooms=rooms)
+    graph = SimpleGraph(
+        rooms,
+        {
+            "bedroom_1": {"bathroom_2"},
+            "bathroom_2": {"bedroom_1"},
+        },
+    )
+    program = HouseProgram(
+        category="medium",
+        rooms={"bedroom_1": 8.0, "bathroom_2": 3.0},
+        topology={
+            "bedroom_1": ["bathroom_2"],
+            "bathroom_2": ["bedroom_1"],
+        },
+    )
+
+    openings = OpeningsPlacer.generate_openings(plan, graph, program)
+
+    bathroom_doors = [
+        opening for opening in openings["bathroom_2"] if opening.kind == "door"
+    ]
+
+    assert [(opening.wall, opening.kind) for opening in bathroom_doors] == [("W", "door")]
+
+
+def test_powder_room_prefers_social_access_over_bedroom_access():
+    living = RoomSpec("living", x=0.0, y=0.0, width=2.0, length=2.0)
+    powder = RoomSpec("bathroom_social", x=2.0, y=0.0, width=2.0, length=1.2)
+    bedroom = RoomSpec("bedroom_1", x=2.0, y=1.2, width=2.0, length=2.0)
+    rooms = [living, powder, bedroom]
+    plan = FloorPlan(seed=1, total_width=4.0, total_length=3.2, rooms=rooms)
+    graph = SimpleGraph(
+        rooms,
+        {
+            "living": {"bathroom_social", "bedroom_1"},
+            "bathroom_social": {"living", "bedroom_1"},
+            "bedroom_1": {"living", "bathroom_social"},
+        },
+    )
+    program = HouseProgram(
+        category="medium",
+        rooms={"living": 8.0, "bathroom_social": 3.0, "bedroom_1": 8.0},
+        topology={
+            "living": ["bathroom_social", "bedroom_1"],
+            "bathroom_social": ["living"],
+            "bedroom_1": ["living"],
+        },
+    )
+
+    openings = OpeningsPlacer.generate_openings(plan, graph, program)
+
+    powder_doors = [
+        opening for opening in openings["bathroom_social"] if opening.kind == "door"
+    ]
+    bedroom_gaps = [
+        opening for opening in openings["bedroom_1"] if opening.kind == "gap"
+    ]
+
+    assert [(opening.wall, opening.kind) for opening in powder_doors] == [("W", "door")]
+    assert bedroom_gaps == []
