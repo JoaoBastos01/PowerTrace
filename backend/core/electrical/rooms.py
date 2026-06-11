@@ -2,7 +2,7 @@
 
 import math
 from .base import BaseRoom
-from .appliances import Appliance, ApplianceType
+from .appliances import Appliance, ApplianceType, ApplianceSource
 from .standards.nbr8995 import lighting_calculator
 
 
@@ -48,10 +48,12 @@ class Kitchen(BaseRoom):
     def _apply_faucet(self) -> None:
         self.add_appliance(
             Appliance(
+                key="kitchen_electric_faucet",
                 name="Torneira elétrica",
                 wattage=5500,
                 type=ApplianceType.DEDICATED,
                 voltage=220,
+                source=ApplianceSource.DEFAULT,
             )
         )
 
@@ -130,10 +132,12 @@ class Bathroom(BaseRoom):
     def _apply_shower(self) -> None:
         self.add_appliance(
             Appliance(
+                key="bathroom_electric_shower",
                 name="Chuveiro elétrico",
                 wattage=5500,
                 type=ApplianceType.DEDICATED,
                 voltage=220,
+                source=ApplianceSource.DEFAULT,
             )
         )
 
@@ -168,7 +172,9 @@ class BathroomSocial(BaseRoom):
     def _apply_tugs(self) -> None:
         self.add_appliance(
             Appliance(
-                name="TUG banheiro social (IPX4)", wattage=100, type=ApplianceType.GENERAL
+                name="TUG banheiro social (IPX4)",
+                wattage=100,
+                type=ApplianceType.GENERAL,
             )
         )
 
@@ -274,10 +280,12 @@ class Garage(BaseRoom):
     def _apply_gate(self) -> None:
         self.add_appliance(
             Appliance(
+                key="garage_gate_motor",
                 name="Motor do portão",
                 wattage=300,
                 type=ApplianceType.DEDICATED,
                 pf=0.92,
+                source=ApplianceSource.DEFAULT,
             )
         )
 
@@ -327,9 +335,11 @@ class LivingKitchen(BaseRoom):
     def _apply_faucet(self) -> None:
         self.add_appliance(
             Appliance(
+                key="living_kitchen_electric_faucet",
                 name="Torneira elétrica",
                 wattage=5500,
                 type=ApplianceType.DEDICATED,
                 voltage=220,
+                source=ApplianceSource.DEFAULT,
             )
         )

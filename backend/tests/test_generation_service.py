@@ -4,6 +4,7 @@ from app.config import settings
 from app.schemas.generation import GenerationCreateRequest
 from app.services.generation import (
     FloorPlanGenerationError,
+    GenerationInputError,
     generate_project_artifact,
 )
 
@@ -51,3 +52,105 @@ def test_generation_service_propagates_known_failure_and_removes_partial_file(
         )
 
     assert not partial_path.exists()
+
+
+def test_generation_service_applies_tue_overrides_to_result_and_dxf(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "output_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "max_generation_attempts", 300)
+
+    baseline = generate_project_artifact(
+        GenerationCreateRequest(width=8, length=12, seed=42),
+        "baseline-id",
+    )
+    overridden = generate_project_artifact(
+        GenerationCreateRequest(
+            width=8,
+            length=12,
+            seed=42,
+            rooms=[
+                {
+                    "room_key": "kitchen",
+                    "room_type": "kitchen",
+                    "display_name": "Custom Kitchen",
+                    "specific_outlets": [
+                        {
+                            "id": "kitchen_electric_faucet",
+                            "enabled": False,
+                            "source": "default",
+                        },
+                        {
+                            "id": "custom_oven",
+                            "name": "Electric oven",
+                            "power_w": 3000,
+                            "voltage": 220,
+                            "source": "custom",
+                        },
+                        {
+                            "id": "custom_air_conditioner",
+                            "name": "Air conditioner",
+                            "quantity": 2,
+                            "power_w": 1500,
+                            "voltage": 220,
+                            "power_factor": 0.92,
+                            "source": "custom",
+                        },
+                    ],
+                }
+            ],
+        ),
+        "overridden-id",
+    )
+
+    baseline_kitchen = next(
+        room for room in baseline.rooms if room.room_type == "kitchen"
+    )
+    overridden_kitchen = next(
+        room for room in overridden.rooms if room.room_type == "kitchen"
+    )
+    outlet_keys = {
+        outlet.key for outlet in overridden_kitchen.specific_outlets
+    }
+
+    assert overridden_kitchen.name == "Custom Kitchen"
+    assert "kitchen_electric_faucet" not in outlet_keys
+    assert "custom_oven" in outlet_keys
+    assert "custom_air_conditioner_1" in outlet_keys
+    assert "custom_air_conditioner_2" in outlet_keys
+    assert overridden_kitchen.total_wattage == (
+        baseline_kitchen.total_wattage - 5500 + 3000 + (2 * 1500)
+    )
+    oven = next(
+        outlet
+        for outlet in overridden_kitchen.specific_outlets
+        if outlet.key == "custom_oven"
+    )
+    assert oven.power_w == 3000
+    assert oven.voltage == 220
+    assert oven.source == "custom"
+    assert (tmp_path / "generation_overridden-id.dxf").is_file()
+
+
+def test_generation_service_rejects_override_for_room_not_generated(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "output_dir", str(tmp_path))
+    monkeypatch.setattr(settings, "max_generation_attempts", 300)
+    request = GenerationCreateRequest(
+        width=8,
+        length=12,
+        seed=42,
+        rooms=[
+            {
+                "room_key": "attic",
+                "room_type": "attic",
+                "specific_outlets": [],
+            }
+        ],
+    )
+
+    with pytest.raises(GenerationInputError, match="attic"):
+        generate_project_artifact(request, "unknown-room-id")
+
+    assert not (tmp_path / "generation_unknown-room-id.dxf").exists()

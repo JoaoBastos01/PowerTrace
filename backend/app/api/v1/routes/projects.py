@@ -163,7 +163,10 @@ def get_project(
     responses={
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": GenerationCreatedResponse,
-            "description": "The generator could not produce a valid floor plan.",
+            "description": (
+                "The request overrides are incompatible with the generated "
+                "plan or no valid floor plan could be produced."
+            ),
         },
         status.HTTP_500_INTERNAL_SERVER_ERROR: {
             "model": GenerationCreatedResponse,
@@ -197,7 +200,10 @@ def generate_project_plant(
             normalized_request,
             generation.id,
         )
-    except generation_service.FloorPlanGenerationError as exc:
+    except (
+        generation_service.FloorPlanGenerationError,
+        generation_service.GenerationInputError,
+    ) as exc:
         error_message = str(exc)
         mark_failed_safely(
             repo,

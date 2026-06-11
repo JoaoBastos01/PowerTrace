@@ -8,10 +8,11 @@ from app.db_models import Generation
 from app.repositories.projects import ProjectRepository
 from app.schemas.generation import (
     GeneratedRoomResult,
+    GeneratedSpecificOutletResult,
     GenerationCreateRequest,
     GenerationResult,
 )
-from app.services.generation import FloorPlanGenerationError
+from app.services.generation import FloorPlanGenerationError, GenerationInputError
 
 
 def register_and_authorize(
@@ -186,10 +187,122 @@ def test_unexpected_generation_failure_returns_safe_500(api, monkeypatch):
         assert "database password" not in generation.error_message
 
 
-def test_room_overrides_are_rejected_without_creating_generation(api):
+def test_room_overrides_are_persisted_and_exposed_in_generation_detail(
+    api, monkeypatch
+):
     client, session_factory = api
     headers = register_and_authorize(client)
     project_id = create_project(client, headers)
+
+    def generate(request, generation_id):
+        room_input = request.rooms[0]
+        assert room_input.room_key == "kitchen"
+        assert room_input.specific_outlets[1].power_w == 3000
+        return GenerationResult(
+            seed=request.seed,
+            category="medium",
+            total_width=8,
+            total_length=12,
+            total_area=96,
+            rooms=[
+                GeneratedRoomResult(
+                    room_type="kitchen",
+                    room_role="kitchen",
+                    name="Kitchen",
+                    x=0,
+                    y=0,
+                    width=4,
+                    length=4,
+                    area=16,
+                    total_wattage=4800,
+                    exterior_walls=["S"],
+                    specific_outlets=[
+                        GeneratedSpecificOutletResult(
+                            key="custom_oven",
+                            name="Electric oven",
+                            power_w=3000,
+                            voltage=220,
+                            power_factor=1.0,
+                            source="custom",
+                        )
+                    ],
+                )
+            ],
+            dxf_filename=f"generation_{generation_id}.dxf",
+        )
+
+    monkeypatch.setattr(
+        "app.api.v1.routes.projects.generation_service.generate_project_artifact",
+        generate,
+    )
+
+    payload = {
+        "width": 8,
+        "length": 12,
+        "seed": 42,
+        "rooms": [
+            {
+                "room_key": "kitchen",
+                "room_type": "kitchen",
+                "specific_outlets": [
+                    {
+                        "id": "kitchen_electric_faucet",
+                        "enabled": False,
+                        "source": "default",
+                    },
+                    {
+                        "id": "custom_oven",
+                        "name": "Electric oven",
+                        "power_w": 3000,
+                        "voltage": 220,
+                        "source": "custom",
+                    },
+                ],
+            }
+        ],
+    }
+    response = client.post(
+        f"/api/v1/projects/{project_id}/generations",
+        headers=headers,
+        json=payload,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    with session_factory() as db:
+        assert db.scalar(select(func.count()).select_from(Generation)) == 1
+        generation = db.get(Generation, body["generation_id"])
+        persisted_input = GenerationCreateRequest.model_validate_json(
+            generation.input_json
+        )
+        assert persisted_input.rooms[0].specific_outlets[1].power_w == 3000
+
+    detail = client.get(
+        f"/api/v1/projects/{project_id}/generations/{body['generation_id']}",
+        headers=headers,
+    )
+    assert detail.status_code == 200
+    outlets = detail.json()["result"]["rooms"][0]["specific_outlets"]
+    assert [outlet["key"] for outlet in outlets] == ["custom_oven"]
+    assert outlets[0]["power_w"] == 3000
+
+
+def test_invalid_generation_override_returns_422_and_persists_failed(
+    api, monkeypatch
+):
+    client, session_factory = api
+    headers = register_and_authorize(client)
+    project_id = create_project(client, headers)
+
+    def fail(request, generation_id):
+        raise GenerationInputError(
+            "Room overrides reference rooms not present in the generated plan: attic."
+        )
+
+    monkeypatch.setattr(
+        "app.api.v1.routes.projects.generation_service.generate_project_artifact",
+        fail,
+    )
 
     response = client.post(
         f"/api/v1/projects/{project_id}/generations",
@@ -197,10 +310,11 @@ def test_room_overrides_are_rejected_without_creating_generation(api):
         json={
             "width": 8,
             "length": 12,
+            "seed": 42,
             "rooms": [
                 {
-                    "room_key": "kitchen",
-                    "room_type": "kitchen",
+                    "room_key": "attic",
+                    "room_type": "attic",
                     "specific_outlets": [],
                 }
             ],
@@ -208,8 +322,12 @@ def test_room_overrides_are_rejected_without_creating_generation(api):
     )
 
     assert response.status_code == 422
+    body = response.json()
+    assert body["status"] == "failed"
+    assert "attic" in body["error_message"]
     with session_factory() as db:
-        assert db.scalar(select(func.count()).select_from(Generation)) == 0
+        generation = db.get(Generation, body["generation_id"])
+        assert generation.status == "failed"
 
 
 def test_generation_of_another_user_is_hidden(api, monkeypatch):
