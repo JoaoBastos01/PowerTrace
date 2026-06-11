@@ -1,32 +1,41 @@
-"""Pydantic schemas for simple authentication."""
+"""Pydantic schemas for user authentication."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
-    """Credentials submitted by the login form."""
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
 
-    username: str = Field(..., min_length=1)
-    password: str = Field(..., min_length=1)
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    name: str = Field(..., min_length=1, max_length=120)
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Name must not be blank.")
+        return value
 
 
 class AuthTokenResponse(BaseModel):
-    """Token returned after a successful login."""
-
     access_token: str
     token_type: str = "bearer"
 
 
 class AuthenticatedUser(BaseModel):
-    """Minimal authenticated user exposed to route handlers."""
-
     id: str
-    username: str
+    email: EmailStr
+    name: str
 
 
 class UserResponse(BaseModel):
-    """Public user payload."""
+    model_config = ConfigDict(from_attributes=True)
 
     id: str
-    username: str
-
+    email: EmailStr
+    name: str

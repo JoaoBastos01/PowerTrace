@@ -1,4 +1,4 @@
-from app.schemas.floor_plan import RoomResponse
+from app.schemas.generation import GeneratedRoomResult
 from core.electrical.room_catalog import room_spec_to_base_room
 from core.electrical.rooms import Bathroom, BathroomSocial
 from core.generation.room_roles import resolve_room_presentation
@@ -29,7 +29,7 @@ def test_primary_bathroom_still_uses_full_bathroom_electrical_model():
 
 
 def test_room_response_exposes_technical_type_role_and_display_name():
-    response = RoomResponse(
+    response = GeneratedRoomResult(
         room_type="bathroom_1",
         room_role="social_full_bathroom",
         name="Social Bathroom",

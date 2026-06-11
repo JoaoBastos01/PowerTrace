@@ -1,8 +1,11 @@
-"""Database configuration for SQLAlchemy."""
+"""Database configuration for SQLAlchemy and Alembic."""
 
 from collections.abc import Generator
+from pathlib import Path
 
-from sqlalchemy import create_engine, inspect, text
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
@@ -10,42 +13,35 @@ from app.config import settings
 
 class Base(DeclarativeBase):
     """Base class for SQLAlchemy models."""
-    
-connect_args = {}
 
+
+connect_args = {}
 if settings.database_url.startswith("sqlite"):
     connect_args["check_same_thread"] = False
-    
+
 engine = create_engine(settings.database_url, connect_args=connect_args)
+
+if settings.database_url.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def enable_sqlite_foreign_keys(dbapi_connection, connection_record) -> None:
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
-    
     try:
         yield db
     finally:
         db.close()
-        
+
+
 def init_db() -> None:
-    import app.db_models # noqa:F401    
-    Base.metadata.create_all(bind=engine)
-    apply_sqlite_schema_updates()
-
-
-def apply_sqlite_schema_updates() -> None:
-    """Apply small SQLite updates until proper migrations are added."""
-    if not settings.database_url.startswith("sqlite"):
-        return
-
-    inspector = inspect(engine)
-    if "projects" not in inspector.get_table_names():
-        return
-
-    project_columns = {
-        column["name"] for column in inspector.get_columns("projects")
-    }
-    if "description" not in project_columns:
-        with engine.begin() as connection:
-            connection.execute(text("ALTER TABLE projects ADD COLUMN description TEXT"))
+    """Apply all database migrations."""
+    backend_root = Path(__file__).resolve().parents[1]
+    config = Config(str(backend_root / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(config, "head")

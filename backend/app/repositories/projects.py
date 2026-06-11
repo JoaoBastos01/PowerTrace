@@ -4,13 +4,15 @@ Keep route handlers thin. Put database reads/writes here once persistence is
 chosen.
 """
 
-import json
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db_models import Generation, Project
-from app.schemas.generation import GenerationCreateRequest, GenerationStatus
+from app.schemas.generation import (
+    GenerationCreateRequest,
+    GenerationResult,
+    GenerationStatus,
+)
 from app.schemas.project import ProjectCreateRequest
 
 
@@ -69,15 +71,15 @@ class ProjectRepository:
         owner_id: str,
         project_id: str,
         generation_id: str,
-        dxf_filename: str,
+        result: GenerationResult,
     ) -> Generation | None:
         generation = self.get_generation_owned(owner_id, project_id, generation_id)
         if generation is None:
             return None
 
         generation.status = GenerationStatus.generated.value
-        generation.dxf_filename = dxf_filename
-        generation.result_json = json.dumps({"dxf_filename": dxf_filename})
+        generation.dxf_filename = result.dxf_filename
+        generation.result_json = result.model_dump_json()
         generation.error_message = None
         self.db.commit()
         self.db.refresh(generation)
@@ -95,6 +97,8 @@ class ProjectRepository:
             return None
 
         generation.status = GenerationStatus.failed.value
+        generation.dxf_filename = None
+        generation.result_json = None
         generation.error_message = error_message
         self.db.commit()
         self.db.refresh(generation)
