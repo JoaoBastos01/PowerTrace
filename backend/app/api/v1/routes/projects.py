@@ -326,6 +326,7 @@ def get_generation(
         dxf_filename=generation.dxf_filename,
         error_message=generation.error_message,
         download_url=download_url,
+        input=request,
         result=result,
     )
 

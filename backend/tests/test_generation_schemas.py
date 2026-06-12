@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.generation import GenerationCreateRequest
+from app.schemas.generation import GenerationCreateRequest, GenerationResult
 
 
 def test_custom_tue_requires_power():
@@ -66,3 +66,35 @@ def test_custom_tue_preserves_electrical_configuration():
     assert outlet.power_w == 3000
     assert outlet.voltage == 220
     assert outlet.power_factor == 0.95
+
+
+def test_legacy_generation_result_defaults_new_electrical_fields():
+    result = GenerationResult.model_validate(
+        {
+            "seed": 42,
+            "category": "medium",
+            "total_width": 8,
+            "total_length": 12,
+            "total_area": 96,
+            "rooms": [
+                {
+                    "room_type": "living",
+                    "room_role": "living_area",
+                    "name": "Sala",
+                    "x": 0,
+                    "y": 0,
+                    "width": 4,
+                    "length": 4,
+                    "area": 16,
+                    "total_wattage": 300,
+                    "exterior_walls": ["S"],
+                }
+            ],
+            "dxf_filename": "legacy.dxf",
+        }
+    )
+
+    assert result.total_power_w == 0
+    assert result.circuits == []
+    assert result.rooms[0].load_points == []
+    assert result.rooms[0].load_summary.total_power_w == 0

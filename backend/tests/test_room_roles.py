@@ -9,14 +9,14 @@ def test_small_primary_bathroom_is_presented_as_social_full_bathroom():
     presentation = resolve_room_presentation("bathroom_1", "small")
 
     assert presentation.room_role == "social_full_bathroom"
-    assert presentation.display_name == "Social Bathroom"
+    assert presentation.display_name == "Banheiro social"
 
 
 def test_bathroom_social_is_presented_as_powder_room():
     presentation = resolve_room_presentation("bathroom_social", "medium")
 
     assert presentation.room_role == "powder_room"
-    assert presentation.display_name == "Social WC"
+    assert presentation.display_name == "Lavabo"
 
 
 def test_primary_bathroom_still_uses_full_bathroom_electrical_model():
@@ -45,3 +45,16 @@ def test_room_response_exposes_technical_type_role_and_display_name():
     assert response.room_type == "bathroom_1"
     assert response.room_role == "social_full_bathroom"
     assert response.name == "Social Bathroom"
+
+
+def test_default_room_names_are_presented_in_portuguese():
+    assert resolve_room_presentation("living", "medium").display_name == "Sala"
+    assert resolve_room_presentation("kitchen", "medium").display_name == "Cozinha"
+    assert (
+        resolve_room_presentation("bedroom_2", "medium").display_name
+        == "Quarto 2"
+    )
+    assert (
+        resolve_room_presentation("bathroom_2", "medium").display_name
+        == "Banheiro 2"
+    )

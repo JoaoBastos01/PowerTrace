@@ -24,6 +24,19 @@ def test_generation_service_creates_unique_deterministic_dxf(tmp_path, monkeypat
     assert first.dxf_filename == first_path.name
     assert second.dxf_filename == second_path.name
     assert first.seed == 42
+    assert first.total_power_w == sum(
+        room.total_wattage for room in first.rooms
+    )
+    assert first.circuits
+    assert first.circuits[0].id == "C01"
+    assert all(
+        circuit.breaker_a >= circuit.design_current_a
+        for circuit in first.circuits
+    )
+    assert all(
+        circuit.wire_max_current_a >= circuit.breaker_a
+        for circuit in first.circuits
+    )
     assert first.model_dump(exclude={"dxf_filename"}) == second.model_dump(
         exclude={"dxf_filename"}
     )
@@ -130,6 +143,51 @@ def test_generation_service_applies_tue_overrides_to_result_and_dxf(
     assert oven.voltage == 220
     assert oven.source == "custom"
     assert (tmp_path / "generation_overridden-id.dxf").is_file()
+
+    custom_circuits = [
+        circuit
+        for circuit in overridden.circuits
+        if any(
+            point.key.startswith("custom_")
+            for point in circuit.load_points
+        )
+    ]
+    assert {circuit.total_power_w for circuit in custom_circuits} == {
+        1500,
+        3000,
+    }
+    assert all(circuit.voltage == 220 for circuit in custom_circuits)
+
+
+def test_generation_service_rejects_load_above_dimensioning_tables(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "output_dir", str(tmp_path))
+    request = GenerationCreateRequest(
+        width=8,
+        length=12,
+        seed=42,
+        rooms=[
+            {
+                "room_key": "kitchen",
+                "room_type": "kitchen",
+                "specific_outlets": [
+                    {
+                        "id": "industrial_oven",
+                        "name": "Forno industrial",
+                        "power_w": 100000,
+                        "voltage": 127,
+                        "source": "custom",
+                    }
+                ],
+            }
+        ],
+    )
+
+    with pytest.raises(GenerationInputError, match="dimensionar"):
+        generate_project_artifact(request, "oversized-load-id")
+
+    assert not (tmp_path / "generation_oversized-load-id.dxf").exists()
 
 
 def test_generation_service_rejects_override_for_room_not_generated(

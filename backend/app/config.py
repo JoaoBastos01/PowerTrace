@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def parse_csv(value: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 @dataclass
 class Settings:
     """Application settings read from environment variables."""
@@ -25,6 +29,12 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     max_generation_attempts: int = int(
         os.getenv("MAX_GENERATION_ATTEMPTS", "3000")
+    )
+    cors_origins: tuple[str, ...] = parse_csv(
+        os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://127.0.0.1:5173",
+        )
     )
 
     def validate_security(self) -> None:

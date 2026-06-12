@@ -17,8 +17,22 @@ DEFAULT_ROOM_ROLES = {
     "garage": "garage",
 }
 
+DEFAULT_DISPLAY_NAMES = {
+    "living": "Sala",
+    "kitchen": "Cozinha",
+    "living_kitchen": "Sala e cozinha",
+    "corridor": "Corredor",
+    "garage": "Garagem",
+}
+
 
 def default_display_name(room_type: str) -> str:
+    if room_type in DEFAULT_DISPLAY_NAMES:
+        return DEFAULT_DISPLAY_NAMES[room_type]
+    if room_type.startswith("bedroom_"):
+        return f"Quarto {room_type.removeprefix('bedroom_')}"
+    if room_type.startswith("bathroom_"):
+        return f"Banheiro {room_type.removeprefix('bathroom_')}"
     return room_type.replace("_", " ").title()
 
 
@@ -26,12 +40,12 @@ def resolve_room_presentation(room_type: str, category: str) -> RoomPresentation
     if room_type == "bathroom_1" and category in ("kitnet", "small"):
         return RoomPresentation(
             room_role="social_full_bathroom",
-            display_name="Social Bathroom",
+            display_name="Banheiro social",
         )
     if room_type == "bathroom_social":
         return RoomPresentation(
             room_role="powder_room",
-            display_name="Social WC",
+            display_name="Lavabo",
         )
     if room_type.startswith("bathroom"):
         return RoomPresentation(

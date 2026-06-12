@@ -101,6 +101,51 @@ class GeneratedSpecificOutletResult(BaseModel):
     source: Literal["default", "custom"]
 
 
+class GeneratedLoadPointResult(BaseModel):
+    key: str
+    name: str
+    load_type: Literal["lighting", "general", "dedicated"]
+    power_w: int
+    voltage: int
+    power_factor: float
+    source: Literal["default", "custom"]
+
+
+class GeneratedLoadSummary(BaseModel):
+    count: int = 0
+    total_power_w: int = 0
+
+
+class GeneratedRoomLoadSummary(BaseModel):
+    lighting: GeneratedLoadSummary = Field(default_factory=GeneratedLoadSummary)
+    general_outlets: GeneratedLoadSummary = Field(
+        default_factory=GeneratedLoadSummary
+    )
+    specific_outlets: GeneratedLoadSummary = Field(
+        default_factory=GeneratedLoadSummary
+    )
+    total_power_w: int = 0
+
+
+class GeneratedCircuitResult(BaseModel):
+    id: str
+    name: str
+    room_type: str
+    room_name: str
+    circuit_type: Literal["lighting", "general", "dedicated"]
+    voltage: int
+    power_factor: float
+    load_count: int
+    total_power_w: int
+    current_a: float
+    design_current_a: float
+    breaker_a: int
+    wire_gauge_mm2: float
+    wire_max_current_a: float
+    wire_resistance_ohm_km: float
+    load_points: list[GeneratedLoadPointResult] = Field(default_factory=list)
+
+
 class GeneratedRoomResult(BaseModel):
     room_type: str
     room_role: str
@@ -112,6 +157,10 @@ class GeneratedRoomResult(BaseModel):
     area: float
     total_wattage: int
     exterior_walls: list[str]
+    load_points: list[GeneratedLoadPointResult] = Field(default_factory=list)
+    load_summary: GeneratedRoomLoadSummary = Field(
+        default_factory=GeneratedRoomLoadSummary
+    )
     specific_outlets: list[GeneratedSpecificOutletResult] = Field(
         default_factory=list
     )
@@ -123,7 +172,9 @@ class GenerationResult(BaseModel):
     total_width: float
     total_length: float
     total_area: float
+    total_power_w: int = 0
     rooms: list[GeneratedRoomResult]
+    circuits: list[GeneratedCircuitResult] = Field(default_factory=list)
     dxf_filename: str
 
 
@@ -145,4 +196,5 @@ class GenerationDetailResponse(BaseModel):
     dxf_filename: str | None = None
     error_message: str | None = None
     download_url: str | None = None
+    input: GenerationCreateRequest | None = None
     result: GenerationResult | None = None

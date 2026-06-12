@@ -120,6 +120,8 @@ def test_generation_success_persists_seed_result_and_downloads(
     assert detail.status_code == 200
     assert detail.json()["result"]["category"] == "medium"
     assert detail.json()["seed"] == 123456
+    assert detail.json()["input"]["width"] == 8
+    assert detail.json()["input"]["length"] == 12
 
     download = client.get(body["download_url"], headers=headers)
     assert download.status_code == 200
@@ -424,3 +426,22 @@ def test_legacy_floor_plan_route_is_removed(api):
         json={"width": 8, "length": 12, "seed": 42},
     )
     assert response.status_code == 404
+
+
+def test_cors_preflight_allows_local_vite_origin(api):
+    client, _ = api
+
+    response = client.options(
+        "/api/v1/projects",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["access-control-allow-origin"]
+        == "http://localhost:5173"
+    )
