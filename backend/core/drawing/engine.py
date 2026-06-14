@@ -16,6 +16,7 @@ from .openings  import Opening
 from .walls     import draw_room_structure
 from .lighting  import draw_lighting
 from .appliances import draw_appliances
+from .legend import draw_electrical_legend
 
 
 class DXFGenerator:
@@ -50,6 +51,10 @@ class DXFGenerator:
                         openings: List[Opening] = None) -> None:
         """Distribui os pontos de TUG ao longo do perímetro do cômodo."""
         draw_appliances(self.msp, room, wall_thickness, openings)
+
+    def draw_legend(self, plan_width: float, plan_length: float) -> None:
+        """Desenha a legenda elétrica simples fora dos limites da planta."""
+        draw_electrical_legend(self.msp, plan_width, plan_length)
 
     # ------------------------------------------------------------------
     # Persistência

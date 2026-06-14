@@ -1,3 +1,4 @@
+import ezdxf
 import pytest
 
 from app.config import settings
@@ -188,6 +189,39 @@ def test_generation_service_rejects_load_above_dimensioning_tables(
         generate_project_artifact(request, "oversized-load-id")
 
     assert not (tmp_path / "generation_oversized-load-id.dxf").exists()
+
+
+def test_generation_service_draws_distinct_outlets_and_portuguese_legend(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "output_dir", str(tmp_path))
+    result = generate_project_artifact(
+        GenerationCreateRequest(width=8, length=12, seed=42),
+        "legend-id",
+    )
+
+    document = ezdxf.readfile(tmp_path / result.dxf_filename)
+    modelspace = document.modelspace()
+    texts = {entity.dxf.text for entity in modelspace.query("TEXT")}
+    legend = next(
+        entity
+        for entity in modelspace.query("TEXT")
+        if entity.dxf.text == "LEGENDA ELÉTRICA"
+    )
+
+    assert "Luminária" in texts
+    assert "TUG - Tomada de uso geral" in texts
+    assert "TUE - Tomada de uso específico" in texts
+    assert legend.dxf.insert.x > result.total_width
+
+    legend_circles = [
+        entity
+        for entity in modelspace.query("CIRCLE")
+        if entity.dxf.center.x > result.total_width
+    ]
+    radii = [round(entity.dxf.radius, 3) for entity in legend_circles]
+    assert radii.count(0.06) == 2
+    assert radii.count(0.035) == 1
 
 
 def test_generation_service_rejects_override_for_room_not_generated(

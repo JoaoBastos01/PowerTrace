@@ -445,3 +445,12 @@ def test_cors_preflight_allows_local_vite_origin(api):
         response.headers["access-control-allow-origin"]
         == "http://localhost:5173"
     )
+
+    simple_response = client.get(
+        "/health",
+        headers={"Origin": "http://localhost:5173"},
+    )
+    exposed_headers = simple_response.headers[
+        "access-control-expose-headers"
+    ].lower()
+    assert "content-disposition" in exposed_headers

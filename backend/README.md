@@ -3,6 +3,8 @@
 PowerTrace is a FastAPI service for persistent residential floor-plan
 generation and electrical DXF output.
 
+Current API version: `0.4.0`.
+
 ## Setup
 
 1. Copy `.env.example` to `.env` and replace all placeholder secrets.
@@ -51,7 +53,7 @@ Open `http://127.0.0.1:8000/docs`, authenticate, and execute:
         },
         {
           "id": "custom_oven",
-          "name": "Electric oven",
+          "name": "Forno elétrico",
           "power_w": 3000,
           "voltage": 220,
           "power_factor": 1.0,
@@ -67,7 +69,8 @@ Open `http://127.0.0.1:8000/docs`, authenticate, and execute:
 
 3. Use the returned `generation_id` with
    `GET /api/v1/projects/{project_id}/generations/{generation_id}`.
-4. Inspect `result.rooms[].specific_outlets` to verify the effective TUEs.
+4. Inspect `result.rooms[].load_summary`, `load_points`, `specific_outlets`,
+   and `result.circuits` to verify the complete electrical sizing.
 5. Execute the returned `download_url` to download the DXF.
 
 When `seed` is omitted, the API generates and persists a reproducible 32-bit
@@ -87,6 +90,9 @@ Generation states:
 
 The former `POST /api/v1/floor-plan/generate` route was removed in API
 version `0.3.0`.
+
+Generated DXFs use Portuguese room names and include a simple electrical
+legend for lighting points, TUGs, and TUEs.
 
 ## Bootstrap And Migration
 

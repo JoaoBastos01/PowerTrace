@@ -74,7 +74,7 @@ class GenerationCreateRequest(BaseModel):
     )
     rooms: list[RoomGenerationInput] = Field(
         default_factory=list,
-        description="Reserved for a future room and TUE override release.",
+        description="Optional room-specific TUE overrides. TUGs remain locked.",
     )
     output_format: Literal["dxf"] = "dxf"
 

@@ -13,6 +13,17 @@ from .geometry import (
 )
 
 
+def draw_outlet_symbol(msp, x: float, y: float, dedicated: bool) -> None:
+    """Draw a TUG as one circle and a TUE as two concentric circles."""
+    msp.add_circle((x, y), radius=0.06, dxfattribs={"layer": "PT_SYMBOLS"})
+    if dedicated:
+        msp.add_circle(
+            (x, y),
+            radius=0.035,
+            dxfattribs={"layer": "PT_SYMBOLS"},
+        )
+
+
 def draw_appliances(
     msp,
     room: BaseRoom,
@@ -49,7 +60,12 @@ def draw_appliances(
         dist_abs = map_free_to_absolute(dist_free, free_segments)
         px, py = perimeter_point(x, y, width, length, dist_abs, wall_thickness)
 
-        msp.add_circle((px, py), radius=0.06, dxfattribs={"layer": "PT_SYMBOLS"})
+        draw_outlet_symbol(
+            msp,
+            px,
+            py,
+            dedicated=app.type == ApplianceType.DEDICATED,
+        )
         msp.add_text(
             f"{app.wattage}W", dxfattribs={"height": 0.1, "layer": "PT_TEXT"}
         ).set_placement((px + 0.07, py + 0.1))

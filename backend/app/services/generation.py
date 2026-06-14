@@ -269,6 +269,7 @@ def generate_project_artifact(
                 )
             )
 
+        generator.draw_legend(plan.total_width, plan.total_length)
         generator.save(dxf_filename)
         return GenerationResult(
             seed=plan.seed,

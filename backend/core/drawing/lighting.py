@@ -6,7 +6,7 @@ from core.electrical.appliances import ApplianceType
 from core.electrical.base import BaseRoom
 
 
-def _draw_lighting_symbol(msp, cx: float, cy: float, r: float = 0.05) -> None:
+def draw_lighting_symbol(msp, cx: float, cy: float, r: float = 0.05) -> None:
     """Draws a lighting symbol (circle with inscribed X) at (cx, cy)."""
     d = r / math.sqrt(2)
     msp.add_circle((cx, cy), radius=r, dxfattribs={"layer": "PT_LIGHTING"})
@@ -96,6 +96,6 @@ def draw_lighting(msp, room: BaseRoom, wall_thickness: float = 0.15) -> None:
         wall_thickness,
     )
     for idx, (cx, cy) in enumerate(positions):
-        _draw_lighting_symbol(msp, cx, cy)
+        draw_lighting_symbol(msp, cx, cy)
         watt_text = f"{lights[idx].wattage}W"
         msp.add_text(watt_text, dxfattribs={"height": 0.1, "layer": "PT_TEXT"}).set_placement((cx + 0.1, cy + 0.1))

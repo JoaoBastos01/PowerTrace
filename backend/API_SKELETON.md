@@ -1,5 +1,7 @@
 # PowerTrace API
 
+Current version: `0.4.0`.
+
 ## Authentication
 
 - `POST /api/v1/auth/register`
@@ -40,7 +42,7 @@ record, executes the generator, and finishes as `generated` or `failed`.
         },
         {
           "id": "custom_oven",
-          "name": "Electric oven",
+          "name": "Forno elétrico",
           "power_w": 3000,
           "voltage": 220,
           "source": "custom"
@@ -83,3 +85,13 @@ from the request.
 
 Default TUEs can be disabled but cannot have their standard power replaced.
 Custom TUEs can define power, voltage, power factor, and quantity.
+
+## Electrical Sizing Result
+
+`GET .../generations/{generation_id}` returns the original generation
+`input`, room load summaries, every load point, and the dimensioned circuits.
+Circuit metadata includes current, design current, breaker, wire gauge,
+ampacity, and conductor resistance.
+
+The downloaded DXF uses Portuguese room labels and includes a simple legend
+for luminárias, TUGs, and TUEs.
