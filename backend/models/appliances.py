@@ -1,16 +1,6 @@
-from enum import Enum
+"""Compatibility re-exports for electrical appliance models."""
 
-class ApplianceType(Enum):
-    GENERAL = "general"
-    DEDICATED = "dedicated"
-    LIGHTING = "lighting"
+from core.electrical.appliances import Appliance, ApplianceType
 
-class Appliance:
-    def __init__(self, name: str, wattage: int, type: ApplianceType = ApplianceType.GENERAL, voltage: int = 127):
-        self.name = name
-        self.wattage = wattage
-        self.type = type
-        self.voltage = voltage
-        
-    def __repr__(self):
-        return f"<{self.type.value}: {self.name} ({self.wattage}W)>"
+__all__ = ["Appliance", "ApplianceType"]
+

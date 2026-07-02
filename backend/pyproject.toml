@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A backend service for the PowerTrace application."
 requires-python = ">=3.13"
 authors = [
-    { name="João Vitor da Silveira Bastos", email="<jvtbsts@gmail.com>" }
+    { name="João Vitor da Silveira Bastos", email="jvtbsts@gmail.com" }
 ]
 
 dependencies = [
@@ -12,11 +12,21 @@ dependencies = [
     "uvicorn>=0.41.0",
     "pydantic>=2.12.0",
     "python-dotenv>=1.2.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "pyjwt>=2.10.0",
+    "pwdlib[argon2]>=0.3.0",
+    "email-validator>=2.2.0"
 ]
 
 [build-system]
 requires = ["setuptools>=82.0.0", "wheel>=0.46.0"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "core*", "models*", "services*", "standards*"]
+exclude = ["tests*", "agents*", "output*", "scripts*"]
 
 [tool.pytest.ini_options]
 filterwarnings = [

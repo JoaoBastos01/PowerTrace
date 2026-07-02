@@ -1,6 +1,6 @@
 import pytest
 import math
-from services.drawing.geometry import perimeter_point, wall_unit_vector, inward_normal
+from core.electrical.standards import perimeter_point, wall_unit_vector, inward_normal
 
 # ────────────────────────────────────────────────────────────────────
 # Fixtures
