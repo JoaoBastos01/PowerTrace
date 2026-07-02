@@ -49,6 +49,7 @@ def generate_full_plan(seed: int, width: float, length: float, output_file: str)
         generator.draw_room_structure(room_obj, openings=room_openings)
         generator.draw_lighting(room_obj)
         generator.draw_appliances(room_obj, openings=room_openings)
+        generator.draw_room_label(room_obj)
 
         print(f"  - {room_obj.name}: {room_obj.area:.1f}m² ({room_obj.get_total_wattage()}W)")
 

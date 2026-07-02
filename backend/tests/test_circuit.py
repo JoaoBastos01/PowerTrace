@@ -1,7 +1,8 @@
 import pytest
-from core.electrical.standards import Circuit, CircuitDimension
-from core.electrical.standards import Appliance
-from core.electrical.standards import WireSpec
+
+from core.electrical.appliances import Appliance
+from core.electrical.circuit import Circuit, CircuitDimension
+from core.electrical.standards.nbr5410 import WireSpec
 
 
 # ────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import pytest
-from standards.nbr5410 import ElectricalStandards, WireSpec
+
+from core.electrical.standards.nbr5410 import ElectricalStandards, WireSpec
 
 
 # ────────────────────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 import math
 import pytest
-from models.rooms import Kitchen
-from models.appliances import ApplianceType
-from models.circuit import Circuit
+
+from core.electrical.appliances import ApplianceType
+from core.electrical.circuit import Circuit
+from core.electrical.rooms import Kitchen
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -94,14 +95,12 @@ def test_kitchen_remaining_tugs_are_100w():
         assert tug.wattage == 100
 
 
-def test_kitchen_rules_not_applied_twice():
-    """Chamar apply_nbr5410_rules duas vezes não deve duplicar appliances."""
+def test_kitchen_rules_currently_append_on_reapplication():
+    """Documenta que a reaplicação atual acrescenta novamente as cargas."""
     k = Kitchen("K", width=4.0, length=3.0)
     k.apply_nbr5410_rules()
     count_first = len(k.appliances)
     k.apply_nbr5410_rules()
-    # Espera-se que seja o dobro — documenta o comportamento atual (sem idempotência)
-    # mas alerta se isso mudar silenciosamente
     assert len(k.appliances) == count_first * 2
 
 
@@ -153,7 +152,7 @@ def test_build_circuits_no_empty_circuits():
 
 def test_build_circuits_dedicated_one_per_appliance():
     """Cada appliance DEDICATED deve gerar seu próprio circuito."""
-    from models.appliances import Appliance
+    from core.electrical.appliances import Appliance
 
     k = Kitchen("K", width=4.0, length=3.0)
     k.add_appliance(Appliance("Forno", 3000, type=ApplianceType.DEDICATED))

@@ -13,7 +13,7 @@ from app.config import settings
 
 from .layers    import setup_layers
 from .openings  import Opening
-from .walls     import draw_room_structure
+from .walls     import draw_room_label, draw_room_structure
 from .lighting  import draw_lighting
 from .appliances import draw_appliances
 from .legend import draw_electrical_legend
@@ -51,6 +51,10 @@ class DXFGenerator:
                         openings: List[Opening] = None) -> None:
         """Distribui os pontos de TUG ao longo do perímetro do cômodo."""
         draw_appliances(self.msp, room, wall_thickness, openings)
+
+    def draw_room_label(self, room: BaseRoom) -> None:
+        """Desenha o nome e a potencia total do comodo."""
+        draw_room_label(self.msp, room)
 
     def draw_legend(self, plan_width: float, plan_length: float) -> None:
         """Desenha a legenda elétrica simples fora dos limites da planta."""

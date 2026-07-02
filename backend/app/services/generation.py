@@ -250,6 +250,7 @@ def generate_project_artifact(
             generator.draw_room_structure(room, openings=room_openings)
             generator.draw_lighting(room)
             generator.draw_appliances(room, openings=room_openings)
+            generator.draw_room_label(room)
 
             rooms.append(
                 GeneratedRoomResult(

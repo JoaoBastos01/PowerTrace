@@ -213,6 +213,18 @@ def test_generation_service_draws_distinct_outlets_and_portuguese_legend(
     assert "TUG - Tomada de uso geral" in texts
     assert "TUE - Tomada de uso específico" in texts
     assert legend.dxf.insert.x > result.total_width
+    room_labels = {
+        f"{room.name} ({room.total_wattage}W)"
+        for room in result.rooms
+    }
+    drawn_room_labels = [
+        entity
+        for entity in modelspace.query("TEXT")
+        if entity.dxf.text in room_labels
+    ]
+    assert len(drawn_room_labels) == len(room_labels)
+    assert all(entity.dxf.halign == 1 for entity in drawn_room_labels)
+    assert all(entity.dxf.valign == 2 for entity in drawn_room_labels)
 
     legend_circles = [
         entity
