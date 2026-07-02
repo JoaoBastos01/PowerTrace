@@ -5,15 +5,17 @@ from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
 
 from .bsp import BSPNode
-from .program import HouseProgram, ROOM_CATALOG
+from .program import HouseProgram, ROOM_CATALOG, room_max_area
 
 
 DEFAULT_MAX_ASPECT = 3.5
+AREA_TOLERANCE = 1.05
 ROOM_MAX_ASPECT = {
     # A 1.20 m wide bathroom is acceptable only while it remains compact.
     # Wider bathrooms can still be longer, but avoid BSP "noodles" in small plans.
     "bathroom": 3.5,
     "bathroom_social": 3.5,
+    "corridor": 12.0,
 }
 
 
@@ -101,6 +103,9 @@ class TopologyBSP:
             min_dim_right = max(ROOM_CATALOG[r].min_dimension for r in right) if right else 1.0
             min_ratio = min_dim_left / cut_dim
             max_ratio = 1.0 - (min_dim_right / cut_dim)
+            area_min_ratio, area_max_ratio = self._area_ratio_bounds(node, left, right)
+            min_ratio = max(min_ratio, area_min_ratio)
+            max_ratio = min(max_ratio, area_max_ratio)
             if min_ratio > max_ratio:
                 continue
 
@@ -136,12 +141,36 @@ class TopologyBSP:
         left_w = node.width * ratio
         return left_w, node.length, node.width - left_w, node.length
 
+    def _area_ratio_bounds(
+        self,
+        node: BSPNode,
+        left: List[str],
+        right: List[str],
+    ) -> Tuple[float, float]:
+        node_area = node.width * node.length
+        left_min = sum(ROOM_CATALOG[r].min_area for r in left)
+        left_max = sum(
+            room_max_area(r, self.program.category) * AREA_TOLERANCE
+            for r in left
+        )
+        right_min = sum(ROOM_CATALOG[r].min_area for r in right)
+        right_max = sum(
+            room_max_area(r, self.program.category) * AREA_TOLERANCE
+            for r in right
+        )
+
+        min_ratio = max(left_min / node_area, 1.0 - (right_max / node_area))
+        max_ratio = min(left_max / node_area, 1.0 - (right_min / node_area))
+        return min_ratio, max_ratio
+
     def _terminal_rooms_fit(self, rooms: List[str], width: float, length: float) -> bool:
         if len(rooms) != 1:
             return True
         room_type = rooms[0]
         config = ROOM_CATALOG[room_type]
         if min(width, length) < config.min_dimension:
+            return False
+        if width * length > room_max_area(room_type, self.program.category) * AREA_TOLERANCE:
             return False
         return _aspect(width, length) <= _max_aspect_for(room_type)
 
@@ -251,11 +280,18 @@ def validate_topology(leaves: List[BSPNode], program: HouseProgram) -> bool:
         if len(private_adjs) < required_private_adjs:
             return False
 
+    if program.category in {"medium", "large"} and "bathroom_1" in graph.edges:
+        if "corridor" not in graph.edges["bathroom_1"]:
+            return False
+
     # Enforce realistic aspect ratios for rooms (prevent noodles)
     for node in leaves:
+        config = ROOM_CATALOG.get(node.room_type)
+        if config and node.width * node.length > room_max_area(node.room_type, program.category) * AREA_TOLERANCE:
+            return False
+
         if node.room_type == 'corridor':
             continue
-        config = ROOM_CATALOG.get(node.room_type)
         if config and min(node.width, node.length) < config.min_dimension:
             return False
 

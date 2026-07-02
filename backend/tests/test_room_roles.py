@@ -12,6 +12,14 @@ def test_small_primary_bathroom_is_presented_as_social_full_bathroom():
     assert presentation.display_name == "Banheiro social"
 
 
+def test_primary_bathroom_is_social_full_bathroom_in_larger_plans():
+    for category in ("medium", "large"):
+        presentation = resolve_room_presentation("bathroom_1", category)
+
+        assert presentation.room_role == "social_full_bathroom"
+        assert presentation.display_name == "Banheiro social"
+
+
 def test_bathroom_social_is_presented_as_powder_room():
     presentation = resolve_room_presentation("bathroom_social", "medium")
 

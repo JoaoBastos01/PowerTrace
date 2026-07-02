@@ -4,7 +4,11 @@ from typing import Dict, List, Tuple
 from models.floor_plan import FloorPlan
 from core.drawing.openings import Opening
 from core.generation.adjacency import AdjacencyGraph
-from core.generation.access_policy import build_access_edges, connection_cost
+from core.generation.access_policy import (
+    PROHIBITED_COST,
+    build_access_edges,
+    connection_cost,
+)
 from core.generation.openings_geometry import (
     Rect,
     absolute_start_from_opening,
@@ -209,8 +213,9 @@ class OpeningsPlacer:
             rspec.room_type: [] for rspec in plan.rooms
         }
         category = getattr(program, "category", None)
+        topology_edges = set(getattr(program, "topology_edges", set()))
         access_edges = (
-            build_access_edges(graph.edges, program.topology_edges, category)
+            build_access_edges(graph.edges, topology_edges, category)
             if program is not None
             else graph.edges
         )
@@ -227,6 +232,13 @@ class OpeningsPlacer:
         for neighbor in sorted(access_edges[root_room]):
             heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(root_room, neighbor, category), root_room, neighbor))
             
+        def can_expand_access(name: str) -> bool:
+            return (
+                not name.startswith('bathroom')
+                and not name.startswith('garage')
+                and name != 'bathroom_social'
+            )
+
         while edges_pq:
             cost, u, v = heapq.heappop(edges_pq)
             if v not in visited:
@@ -234,10 +246,29 @@ class OpeningsPlacer:
                 spanning_edges.add(tuple(sorted([u, v])))
                 
                 # Prevent bathrooms and garages from acting as corridors/pass-throughs
-                if not v.startswith('bathroom') and not v.startswith('garage') and v != 'bathroom_social':
+                if can_expand_access(v):
                     for neighbor in sorted(access_edges[v]):
                         if neighbor not in visited:
                             heapq.heappush(edges_pq, (OpeningsPlacer._get_edge_cost(v, neighbor, category), v, neighbor))
+
+        all_rooms = {room.room_type for room in plan.rooms}
+        while visited != all_rooms:
+            candidates = []
+            for visited_room in sorted(visited):
+                for neighbor in sorted(graph.edges.get(visited_room, set()) - visited):
+                    edge = tuple(sorted([visited_room, neighbor]))
+                    if not can_expand_access(visited_room) and edge not in topology_edges:
+                        continue
+                    cost = connection_cost(visited_room, neighbor, category)
+                    if cost < PROHIBITED_COST:
+                        candidates.append((cost, visited_room, neighbor))
+
+            if not candidates:
+                break
+
+            _, source, target = min(candidates)
+            visited.add(target)
+            spanning_edges.add(tuple(sorted([source, target])))
 
         def get_rank(name):
             if name.startswith('living'): return 0

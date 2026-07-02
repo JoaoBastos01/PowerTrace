@@ -37,7 +37,7 @@ def default_display_name(room_type: str) -> str:
 
 
 def resolve_room_presentation(room_type: str, category: str) -> RoomPresentation:
-    if room_type == "bathroom_1" and category in ("kitnet", "small"):
+    if room_type == "bathroom_1":
         return RoomPresentation(
             room_role="social_full_bathroom",
             display_name="Banheiro social",

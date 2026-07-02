@@ -1,5 +1,6 @@
 from models.floor_plan import FloorPlan, RoomSpec
 from core.drawing.openings import Opening
+from core.generation.generator import FloorPlanGenerator
 from core.generation.openings_geometry import overlap_area, window_footprint
 from core.generation.openings_placer import OpeningsPlacer
 from core.generation.program import HouseProgram
@@ -212,3 +213,23 @@ def test_powder_room_prefers_social_access_over_bedroom_access():
 
     assert [(opening.wall, opening.kind) for opening in powder_doors] == [("W", "door")]
     assert bedroom_gaps == []
+
+
+def test_large_plan_regression_every_bedroom_keeps_access_opening():
+    plan, graph, program = FloorPlanGenerator(
+        master_seed=2962208671,
+        width=15.0,
+        length=12.0,
+    ).generate(max_attempts=1000)
+
+    openings = OpeningsPlacer.generate_openings(plan, graph, program)
+
+    for room in plan.rooms:
+        if not room.room_type.startswith("bedroom"):
+            continue
+
+        access_openings = [
+            opening for opening in openings[room.room_type]
+            if opening.kind in {"door", "gap"}
+        ]
+        assert access_openings, room.room_type

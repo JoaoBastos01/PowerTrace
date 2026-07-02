@@ -27,23 +27,34 @@ def _lighting_grid_dimensions(
     width: float,
     length: float,
     linear_aspect_threshold: float = 3.0,
+    max_linear_count: int = 3,
 ) -> tuple[int, int]:
     """Return columns and rows for a balanced residential lighting grid."""
     short_side = min(width, length)
     long_side = max(width, length)
     if count > 1 and short_side > 0:
         aspect_ratio = long_side / short_side
-        if aspect_ratio >= linear_aspect_threshold:
+        if count <= max_linear_count and aspect_ratio >= linear_aspect_threshold:
             if width >= length:
                 return count, 1
             return 1, count
 
-    cols = max(1, math.ceil(math.sqrt(count)))
-    rows = math.ceil(count / cols)
+    room_aspect = width / length if length > 0 else 1.0
+    candidates = []
+    for cols in range(1, count + 1):
+        rows = math.ceil(count / cols)
+        if min(cols, rows) == 1 and count > max_linear_count:
+            continue
+        empty_slots = (cols * rows) - count
+        grid_aspect = cols / rows
+        aspect_penalty = abs(math.log(grid_aspect / room_aspect))
+        candidates.append((empty_slots, aspect_penalty, abs(cols - rows), cols, rows))
 
-    # Keep two-light layouts aligned with the room's dominant direction.
-    if count == 2 and length > width:
-        return rows, cols
+    if not candidates:
+        cols = max(1, math.ceil(math.sqrt(count)))
+        return cols, math.ceil(count / cols)
+
+    _, _, _, cols, rows = min(candidates)
     return cols, rows
 
 

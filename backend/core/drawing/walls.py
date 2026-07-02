@@ -1,8 +1,18 @@
 """Desenho de paredes e estrutura de cômodos."""
 from typing import List
 
+from ezdxf.enums import TextEntityAlignment
+
 from core.electrical.base import BaseRoom
 from .openings import Opening, draw_door_symbol, draw_window_symbol
+
+
+def _clamped_gap(start: float, end: float, length: float) -> tuple | None:
+    start = max(0.0, min(start, length))
+    end = max(0.0, min(end, length))
+    if end <= start:
+        return None
+    return (start, end)
 
 
 def draw_wall_segment(msp, p1: tuple, p2: tuple, gaps: list, layer: str) -> None:
@@ -57,14 +67,28 @@ def draw_room_structure(msp, room: BaseRoom,
 
     outer_gaps = {'S': [], 'E': [], 'N': [], 'W': []}
     inner_gaps = {'S': [], 'E': [], 'N': [], 'W': []}
+    inner_wall_lengths = {
+        'S': w - tw - te,
+        'E': l - ts - tn,
+        'N': w - tw - te,
+        'W': l - ts - tn,
+    }
 
     for op in openings:
         start = op.offset
         end   = op.offset + op.width
-        outer_gaps[op.wall].append((start, end))
+        outer_gap = _clamped_gap(start, end, outer_walls[op.wall][2])
+        if outer_gap:
+            outer_gaps[op.wall].append(outer_gap)
         ds = tw if op.wall == 'S' else (ts if op.wall == 'E' else (te if op.wall == 'N' else tn))
         if op.kind in ['door', 'window', 'gap', 'garage_door']:
-            inner_gaps[op.wall].append((start - ds, end - ds))
+            inner_gap = _clamped_gap(
+                start - ds,
+                end - ds,
+                inner_wall_lengths[op.wall],
+            )
+            if inner_gap:
+                inner_gaps[op.wall].append(inner_gap)
 
     for wid, (p1, p2, _) in outer_walls.items():
         if wid in ext_walls:
@@ -88,11 +112,6 @@ def draw_room_structure(msp, room: BaseRoom,
             msp.add_line((px1, py1), (px1 - in_x * seal_dist, py1 - in_y * seal_dist), dxfattribs={"layer": "PT_WALLS_INNER"})
             msp.add_line((px2, py2), (px2 - in_x * seal_dist, py2 - in_y * seal_dist), dxfattribs={"layer": "PT_WALLS_INNER"})
 
-    msp.add_text(
-        f"{room.name} ({room.get_total_wattage()}W)",
-        dxfattribs={"height": 0.2, "layer": "PT_TEXT"}
-    ).set_placement((x + w / 2, y + l / 2))
-
     for op in openings:
         if op.kind == 'door':
             p1, p2 = inner_walls[op.wall]
@@ -110,3 +129,17 @@ def draw_room_structure(msp, room: BaseRoom,
             p1, p2, _ = outer_walls[op.wall]
             from .openings import draw_garage_door_symbol
             draw_garage_door_symbol(msp, op, p1, p2)
+
+
+def draw_room_label(msp, room: BaseRoom) -> None:
+    """Desenha o nome do comodo centralizado sobre os demais simbolos."""
+    x, y = room.origin
+    w, l = room.width, room.length
+
+    msp.add_text(
+        f"{room.name} ({room.get_total_wattage()}W)",
+        dxfattribs={"height": 0.2, "layer": "PT_TEXT"},
+    ).set_placement(
+        (x + w / 2, y + l / 2),
+        align=TextEntityAlignment.MIDDLE_CENTER,
+    )

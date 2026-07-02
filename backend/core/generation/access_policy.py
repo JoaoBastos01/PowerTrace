@@ -17,8 +17,10 @@ def sorted_edge(first: str, second: str) -> Edge:
 def room_access_role(room_type: str, category: str | None = None) -> str:
     if category:
         role = resolve_room_presentation(room_type, category).room_role
-        if role in {"social_full_bathroom", "powder_room"}:
-            return "social_bathroom"
+        if role == "powder_room":
+            return "powder_room"
+        if role == "social_full_bathroom":
+            return "social_full_bathroom"
         if role == "full_bathroom":
             return "full_bathroom"
         if role == "living_area" or role == "living_kitchen":
@@ -28,7 +30,9 @@ def room_access_role(room_type: str, category: str | None = None) -> str:
         return role
 
     if room_type == "bathroom_social":
-        return "social_bathroom"
+        return "powder_room"
+    if room_type == "bathroom_1":
+        return "social_full_bathroom"
     if room_type.startswith("bathroom"):
         return "full_bathroom"
     if room_type.startswith("living"):
@@ -41,20 +45,29 @@ def room_access_role(room_type: str, category: str | None = None) -> str:
 
 
 def connection_cost(first: str, second: str, category: str | None = None) -> int:
-    roles = frozenset([
-        room_access_role(first, category),
-        room_access_role(second, category),
-    ])
+    roles = frozenset(
+        [
+            room_access_role(first, category),
+            room_access_role(second, category),
+        ]
+    )
+    if roles == frozenset(["social_hub", "social_full_bathroom"]):
+        if category in {"kitnet", "small", None}:
+            return 1
+        return PROHIBITED_COST
+
     costs = {
         frozenset(["corridor", "bedroom"]): 1,
         frozenset(["corridor", "full_bathroom"]): 1,
-        frozenset(["corridor", "social_bathroom"]): 1,
+        frozenset(["corridor", "social_full_bathroom"]): 1,
+        frozenset(["corridor", "powder_room"]): 1,
         frozenset(["corridor", "social_hub"]): 1,
         frozenset(["social_hub", "kitchen"]): 1,
-        frozenset(["social_hub", "social_bathroom"]): 1,
+        frozenset(["social_hub", "powder_room"]): 1,
         frozenset(["living_kitchen", "bedroom"]): 1,
         frozenset(["living_kitchen", "full_bathroom"]): 1,
-        frozenset(["living_kitchen", "social_bathroom"]): 1,
+        frozenset(["living_kitchen", "social_full_bathroom"]): 1,
+        frozenset(["living_kitchen", "powder_room"]): 1,
         frozenset(["bedroom", "full_bathroom"]): 2,
         frozenset(["social_hub", "bedroom"]): 5,
         frozenset(["kitchen", "corridor"]): 10,
@@ -62,15 +75,20 @@ def connection_cost(first: str, second: str, category: str | None = None) -> int
         frozenset(["kitchen", "bedroom"]): 50,
         frozenset(["bedroom", "bedroom"]): 50,
         frozenset(["kitchen", "full_bathroom"]): 100,
+        frozenset(["kitchen", "social_full_bathroom"]): 100,
         frozenset(["full_bathroom", "full_bathroom"]): 100,
-        frozenset(["bedroom", "social_bathroom"]): PROHIBITED_COST,
-        frozenset(["social_bathroom", "full_bathroom"]): PROHIBITED_COST,
+        frozenset(["full_bathroom", "social_full_bathroom"]): 100,
+        frozenset(["bedroom", "powder_room"]): PROHIBITED_COST,
+        frozenset(["bedroom", "social_full_bathroom"]): PROHIBITED_COST,
+        frozenset(["powder_room", "full_bathroom"]): PROHIBITED_COST,
+        frozenset(["powder_room", "social_full_bathroom"]): PROHIBITED_COST,
         frozenset(["garage", "social_hub"]): 1,
         frozenset(["garage", "kitchen"]): 5,
         frozenset(["garage", "corridor"]): 10,
         frozenset(["garage", "bedroom"]): PROHIBITED_COST,
         frozenset(["garage", "full_bathroom"]): PROHIBITED_COST,
-        frozenset(["garage", "social_bathroom"]): PROHIBITED_COST,
+        frozenset(["garage", "powder_room"]): PROHIBITED_COST,
+        frozenset(["garage", "social_full_bathroom"]): PROHIBITED_COST,
     }
     return costs.get(roles, PROHIBITED_COST)
 
